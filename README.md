@@ -74,7 +74,7 @@ The **College Complaint Management System** replaces traditional paper-based or 
 - **Master Ticket Management**: Instant search by Ticket ID, Title, Student Name, Roll ID, or Location.
 - **Multi-Field Filtering**: Filter complaints by Status, Priority, Category, Department, and Date range.
 - **Status Lifecycle Control**: Update ticket statuses with enforced state transitions and log comments.
-- **Department & Staff Routing**: Assign tickets to specialized campus departments (*IT, Maintenance, Hostel, Transport, Electrical, Cleanliness, Security, Administration*) and individual personnel.
+- **Department & Staff Routing**: Assign tickets to specialized campus academic departments (*CSE, AI, AIML, DS, AIDS, ECE, EEE, Civil, Mechanical*) and operational departments (*IT, Maintenance, Hostel, Transport, Electrical, Cleanliness, Security, Administration*) and individual personnel.
 - **Priority Override**: Escalate ticket urgency (`Low`, `Medium`, `High`, `Critical`).
 - **Resolution Recording**: Submit formal resolution descriptions and technician details.
 - **Department Management**: Complete CRUD interface to manage active campus departments and inspect ticket volume.

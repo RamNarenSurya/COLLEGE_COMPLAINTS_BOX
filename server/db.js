@@ -177,7 +177,45 @@ async function initDB() {
   `);
 
   // Seed default data if empty
+  // Seed default data if empty or ensure required departments exist
   await seedDatabase();
+  await ensureDepartments();
+}
+
+const defaultDepts = [
+  { name: 'Computer Science and Engineering (CSE)', desc: 'Department of Computer Science and Engineering' },
+  { name: 'Artificial Intelligence (AI)', desc: 'Department of Artificial Intelligence' },
+  { name: 'Artificial Intelligence and Machine Learning (AI & ML)', desc: 'Department of Artificial Intelligence and Machine Learning' },
+  { name: 'Data Science (DS)', desc: 'Department of Data Science' },
+  { name: 'Artificial Intelligence and Data Science (AI & DS)', desc: 'Department of Artificial Intelligence and Data Science' },
+  { name: 'Electronics and Communication Engineering (ECE)', desc: 'Department of Electronics and Communication Engineering' },
+  { name: 'Electrical and Electronics Engineering (EEE)', desc: 'Department of Electrical and Electronics Engineering' },
+  { name: 'Civil Engineering (Civil)', desc: 'Department of Civil Engineering' },
+  { name: 'Mechanical Engineering (Mechanical)', desc: 'Department of Mechanical Engineering' },
+  { name: 'IT Department', desc: 'Campus Network, Hardware, Software & Lab Systems' },
+  { name: 'Maintenance Department', desc: 'Furniture, Doors, Windows & General Repairs' },
+  { name: 'Hostel Department', desc: 'Hostel Amenities, Rooms & Mess Services' },
+  { name: 'Transport Department', desc: 'College Buses, Parking & Commute Services' },
+  { name: 'Electrical Department', desc: 'Lighting, Fans, Power Outlets & Air Conditioning' },
+  { name: 'Cleanliness Department', desc: 'Sanitization, Housekeeping & Waste Management' },
+  { name: 'Security Department', desc: 'Campus Gate Access, CCTV & Safety Management' },
+  { name: 'Administration', desc: 'Academic Records, Library & Office Facilities' }
+];
+
+async function ensureDepartments() {
+  try {
+    // Standardize legacy 'AI Department' if present
+    await run(`UPDATE departments SET name = 'Artificial Intelligence (AI)', description = 'Department of Artificial Intelligence' WHERE name = 'AI Department' OR name = 'AI'`);
+
+    for (const d of defaultDepts) {
+      const existing = await get(`SELECT id FROM departments WHERE name = ?`, [d.name]);
+      if (!existing) {
+        await run(`INSERT INTO departments (name, description, status) VALUES (?, ?, 'Active')`, [d.name, d.desc]);
+      }
+    }
+  } catch (err) {
+    console.error('Failed to ensure departments:', err);
+  }
 }
 
 async function seedDatabase() {
@@ -194,19 +232,8 @@ async function seedDatabase() {
   );
 
   // Seed Departments
-  const depts = [
-    { name: 'IT Department', desc: 'Campus Network, Hardware, Software & Lab Systems' },
-    { name: 'Maintenance Department', desc: 'Furniture, Doors, Windows & General Repairs' },
-    { name: 'Hostel Department', desc: 'Hostel Amenities, Rooms & Mess Services' },
-    { name: 'Transport Department', desc: 'College Buses, Parking & Commute Services' },
-    { name: 'Electrical Department', desc: 'Lighting, Fans, Power Outlets & Air Conditioning' },
-    { name: 'Cleanliness Department', desc: 'Sanitization, Housekeeping & Waste Management' },
-    { name: 'Security Department', desc: 'Campus Gate Access, CCTV & Safety Management' },
-    { name: 'Administration', desc: 'Academic Records, Library & Office Facilities' }
-  ];
-
   const deptMap = {};
-  for (const d of depts) {
+  for (const d of defaultDepts) {
     const res = await run(
       `INSERT INTO departments (name, description) VALUES (?, ?)`,
       [d.name, d.desc]
