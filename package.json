@@ -1,0 +1,14 @@
+{
+  "name": "college-complaint-box",
+  "version": "1.0.0",
+  "description": "College Complaint Management System - Full Stack Web Application",
+  "scripts": {
+    "setup": "npm install && cd server && npm install && cd ../client && npm install",
+    "start": "cd server && npm start",
+    "dev": "npx --yes concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build:client": "cd client && npm run build",
+    "users": "node -e \"const sqlite3 = require('./server/node_modules/sqlite3'); const db = new sqlite3.Database('./server/complaints.db'); db.all('SELECT id, name, email, role, student_id FROM users', (err, rows) => console.table(rows));\""
+  }
+}
