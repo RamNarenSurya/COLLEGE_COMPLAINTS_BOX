@@ -103,8 +103,8 @@ The **College Complaint Management System** replaces traditional paper-based or 
 The system automatically initializes and seeds standard test accounts upon first startup:
 
 ### 🔑 Admin Account
-- **Email**: `admin@college.edu`
-- **Password**: `admin123`
+- **Email**: 
+- **Password**: 
 - **Role**: `admin`
 
 *Note: Student accounts can be created directly using the Registration page.*
