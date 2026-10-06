@@ -571,7 +571,7 @@ router.post('/cloud-db/sync', async (req, res) => {
 
       if (connUrl.startsWith('https://')) {
         const sqlStatements = logs.map(l => 
-          `INSERT INTO login_logs (user_id, user_name, email, role, ip_address, user_agent, created_at) VALUES (${l.user_id}, '${l.user_name.replace(/'/g, "''")}', '${l.email.replace(/'/g, "''")}', '${l.role}', '${l.ip_address || ''}', '${(l.user_agent || '').replace(/'/g, "''")}', '${l.created_at}');`
+          `INSERT INTO login_logs (user_id, user_name, email, role, ip_address, user_agent, created_at) VALUES (${l.user_id}, '${(l.user_name || '').replace(/'/g, "''")}', '${(l.email || '').replace(/'/g, "''")}', '${l.role || 'student'}', '${l.ip_address || ''}', '${(l.user_agent || '').replace(/'/g, "''")}', '${l.created_at}');`
         ).join('\n');
 
         const neonRes = await fetch(connUrl, {

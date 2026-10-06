@@ -1,12 +1,10 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
-import { LogOut, PlusCircle, LayoutDashboard, Menu, Sun, Moon, Settings } from 'lucide-react';
+import { LogOut, PlusCircle, LayoutDashboard, Menu, Settings } from 'lucide-react';
 
 export default function Navbar({ onToggleSidebar }) {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -17,15 +15,15 @@ export default function Navbar({ onToggleSidebar }) {
   return (
     <nav className="app-navbar">
       <div className="navbar-container">
-        {/* Left: Mobile Toggle & Brand Logo */}
+        {/* Left: Three Line Navbar Icon & 'C' Logo Icon Only */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {user && (
-            <button className="mobile-menu-toggle" onClick={onToggleSidebar} aria-label="Toggle Sidebar Menu">
+            <button className="navbar-menu-toggle" onClick={onToggleSidebar} aria-label="Toggle Sidebar Menu">
               <Menu size={22} />
             </button>
           )}
 
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', textDecoration: 'none' }}>
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
             <div style={{
               background: 'linear-gradient(135deg, var(--primary-600), var(--primary-900))',
               color: 'white',
@@ -42,27 +40,11 @@ export default function Navbar({ onToggleSidebar }) {
             }}>
               C
             </div>
-            <div className="brand-text-container">
-              <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: '1.25rem', color: 'var(--heading-color)', display: 'block', lineHeight: 1.1 }}>
-                Complant<span style={{ color: 'var(--primary-600)' }}>Box</span>
-              </span>
-              <span className="brand-subtitle" style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Campus Complaint Portal</span>
-            </div>
           </Link>
         </div>
 
-        {/* Navigation Actions */}
+        {/* Right: Navigation Actions & Profile Bar */}
         <div className="navbar-actions">
-          {/* Light / Dark Mode Toggle Button */}
-          <button
-            onClick={toggleTheme}
-            className="btn-theme-toggle"
-            title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
-            aria-label="Toggle Light or Dark Theme"
-          >
-            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} color="#f59e0b" />}
-          </button>
-
           {user ? (
             <>
               {user.role === 'student' ? (
@@ -82,18 +64,19 @@ export default function Navbar({ onToggleSidebar }) {
                 </>
               )}
 
-              {/* User Actions & Logout */}
+              {/* User Profile Bar with Settings Icon on the Left side of Profile */}
               <div className="user-profile-bar">
+                {/* Settings Icon on left side of profile */}
                 <Link
                   to="/settings"
                   className="btn btn-secondary btn-sm"
                   title="Settings & Preferences"
-                  style={{ padding: '0.4rem 0.6rem' }}
+                  style={{ padding: '0.4rem 0.6rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <Settings size={16} />
+                  <Settings size={18} />
                 </Link>
 
-                {/* Profile Icon / Avatar - Hidden on Mobile View */}
+                {/* Profile Avatar */}
                 <div className="user-avatar-hide-mobile" style={{
                   width: '34px',
                   height: '34px',
@@ -110,6 +93,7 @@ export default function Navbar({ onToggleSidebar }) {
                   {user.name ? user.name.charAt(0) : 'U'}
                 </div>
 
+                {/* User Details */}
                 <div className="user-details-hide-mobile" style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.1 }}>
                     {user.name}
@@ -119,7 +103,7 @@ export default function Navbar({ onToggleSidebar }) {
                   </span>
                 </div>
 
-                {/* Clearly visible Logout button option on top right */}
+                {/* Logout Button */}
                 <button
                   onClick={handleLogout}
                   className="btn btn-danger btn-sm mobile-logout-btn"

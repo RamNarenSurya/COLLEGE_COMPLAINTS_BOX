@@ -622,21 +622,22 @@ textarea.form-control {
   justify-content: space-between;
 }
 
-.mobile-menu-toggle {
-  display: none;
+.navbar-menu-toggle {
+  display: inline-flex;
   background: var(--btn-sec-bg);
   border: 1px solid var(--btn-sec-border);
   padding: 0.5rem;
   border-radius: var(--radius-sm);
   color: var(--text-main);
   cursor: pointer;
-  min-width: 40px;
-  min-height: 40px;
+  min-width: 38px;
+  min-height: 38px;
   align-items: center;
   justify-content: center;
+  transition: background-color 0.2s ease;
 }
 
-.mobile-menu-toggle:hover {
+.navbar-menu-toggle:hover {
   background: var(--btn-sec-hover-bg);
 }
 

@@ -1,10 +1,19 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { get, run } = require('../db');
+const { get, run, all } = require('../db');
 const { authenticateToken, JWT_SECRET } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Helper to extract IP
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.socket?.remoteAddress || '127.0.0.1';
+}
 
 // Student Registration
 router.post('/register', async (req, res) => {
@@ -15,33 +24,38 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'All required fields (name, student_id, email, password, department, year) must be provided.' });
     }
 
+    const cleanName = name.trim();
+    const cleanStudentId = student_id.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
     // Email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(cleanEmail)) {
       return res.status(400).json({ error: 'Invalid email format.' });
     }
 
-    if (password.length < 6) {
+    if (cleanPassword.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
-    // Check duplicate student_id or email
-    const existingStudentId = await get(`SELECT id FROM users WHERE student_id = ?`, [student_id]);
+    // Check duplicate student_id or email (case-insensitive)
+    const existingStudentId = await get(`SELECT id FROM users WHERE LOWER(student_id) = LOWER(?)`, [cleanStudentId]);
     if (existingStudentId) {
       return res.status(400).json({ error: 'Student ID is already registered.' });
     }
 
-    const existingEmail = await get(`SELECT id FROM users WHERE email = ?`, [email]);
+    const existingEmail = await get(`SELECT id FROM users WHERE LOWER(email) = LOWER(?)`, [cleanEmail]);
     if (existingEmail) {
       return res.status(400).json({ error: 'Email is already registered.' });
     }
 
-    const password_hash = await bcrypt.hash(password, 10);
+    const password_hash = await bcrypt.hash(cleanPassword, 10);
 
     const result = await run(
       `INSERT INTO users (name, student_id, email, password_hash, role, department_id, year, phone) 
        VALUES (?, ?, ?, ?, 'student', ?, ?, ?)`,
-      [name, student_id, email, password_hash, department_id, year, phone || null]
+      [cleanName, cleanStudentId, cleanEmail, password_hash, department_id, year, phone ? phone.trim() : null]
     );
 
     const newUser = await get(
@@ -51,7 +65,7 @@ router.post('/register', async (req, res) => {
     );
 
     // Record initial Audit Log Entry for new student registration
-    const ip_address = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || '127.0.0.1';
+    const ip_address = getClientIp(req);
     const user_agent = req.headers['user-agent'] || 'Unknown';
     await run(
       `INSERT INTO login_logs (user_id, user_name, email, role, ip_address, user_agent) VALUES (?, ?, ?, 'student', ?, ?)`,
@@ -75,21 +89,29 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login (Student or Admin)
+// Login (Student or Admin - accepts Email OR Student Roll ID)
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required.' });
+      return res.status(400).json({ error: 'Email/Student ID and password are required.' });
     }
 
-    const user = await get(`SELECT * FROM users WHERE email = ?`, [email]);
+    const identifier = String(email).trim().toLowerCase();
+    const cleanPassword = String(password).trim();
+
+    // Query supports logging in via Email OR Student Roll ID (case-insensitive)
+    const user = await get(
+      `SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(student_id) = ?`,
+      [identifier, identifier]
+    );
+
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password_hash);
+    const isMatch = await bcrypt.compare(cleanPassword, user.password_hash);
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
@@ -120,7 +142,7 @@ router.post('/login', async (req, res) => {
     );
 
     // Record Audit Log Entry
-    const ip_address = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    const ip_address = getClientIp(req);
     const user_agent = req.headers['user-agent'] || 'Unknown';
     await run(
       `INSERT INTO login_logs (user_id, user_name, email, role, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -191,31 +213,35 @@ router.put('/profile', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    // Email duplicate check if email changed
-    if (email && email !== user.email) {
-      const existing = await get(`SELECT id FROM users WHERE email = ? AND id != ?`, [email, userId]);
-      if (existing) {
-        return res.status(400).json({ error: 'Email address is already in use by another user.' });
+    // Email duplicate check if email changed (case-insensitive)
+    if (email && email.trim()) {
+      const cleanEmail = email.trim().toLowerCase();
+      if (cleanEmail !== user.email.toLowerCase()) {
+        const existing = await get(`SELECT id FROM users WHERE LOWER(email) = ? AND id != ?`, [cleanEmail, userId]);
+        if (existing) {
+          return res.status(400).json({ error: 'Email address is already in use by another user.' });
+        }
       }
     }
 
     let password_hash = user.password_hash;
-    if (password && password.trim().length > 0) {
-      if (password.trim().length < 6) {
+    if (password && typeof password === 'string' && password.trim().length > 0) {
+      const cleanNewPass = password.trim();
+      if (cleanNewPass.length < 6) {
         return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
       }
       if (currentPassword) {
-        const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+        const isMatch = await bcrypt.compare(String(currentPassword).trim(), user.password_hash);
         if (!isMatch) {
           return res.status(400).json({ error: 'Current password is incorrect.' });
         }
       }
-      password_hash = await bcrypt.hash(password.trim(), 10);
+      password_hash = await bcrypt.hash(cleanNewPass, 10);
     }
 
-    const updatedName = name ? name.trim() : user.name;
-    const updatedEmail = email ? email.trim() : user.email;
-    const updatedPhone = phone !== undefined ? phone : user.phone;
+    const updatedName = name && name.trim() ? name.trim() : user.name;
+    const updatedEmail = email && email.trim() ? email.trim().toLowerCase() : user.email;
+    const updatedPhone = phone !== undefined ? (phone ? String(phone).trim() : null) : user.phone;
     const updatedDept = department_id !== undefined ? department_id : user.department_id;
     const updatedYear = year !== undefined ? year : user.year;
 
