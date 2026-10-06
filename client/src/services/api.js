@@ -55,6 +55,7 @@ export const api = {
   getComplaintDetail: (id) => request(`/complaints/${id}`),
   updateStudentComplaint: (id, action, comment) => request(`/complaints/${id}`, { method: 'PATCH', body: JSON.stringify({ action, comment }) }),
   submitFeedback: (id, rating, comment) => request(`/complaints/${id}/feedback`, { method: 'POST', body: JSON.stringify({ rating, comment }) }),
+  getStudentLoginHistory: () => request('/auth/login-history'),
 
   // Admin APIs
   getAdminComplaints: (params = {}) => {

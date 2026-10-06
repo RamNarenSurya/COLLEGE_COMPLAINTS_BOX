@@ -193,13 +193,13 @@ export default function AdminStaff() {
           justifyContent: 'center',
           zIndex: 1000
         }}>
-          <div className="card" style={{ width: '520px', background: 'white' }}>
+          <div className="card" style={{ width: '520px', maxWidth: '92vw', background: 'white', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '1.25rem' }}>
               {editId ? 'Edit Staff Profile' : 'Add Staff Member'}
             </h3>
 
             <form onSubmit={handleSubmit}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-grid-2">
                 <div className="form-group">
                   <label className="form-label">Full Name *</label>
                   <input
@@ -236,7 +236,7 @@ export default function AdminStaff() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-grid-2">
                 <div className="form-group">
                   <label className="form-label">Department *</label>
                   <select

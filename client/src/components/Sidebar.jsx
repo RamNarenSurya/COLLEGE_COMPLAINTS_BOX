@@ -10,10 +10,12 @@ import {
   Building2, 
   Users, 
   BarChart3, 
-  ShieldAlert 
+  ShieldAlert,
+  Clock,
+  X
 } from 'lucide-react';
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { user } = useAuth();
   if (!user) return null;
 
@@ -25,71 +27,72 @@ export default function Sidebar() {
     gap: '0.75rem',
     padding: '0.75rem 1rem',
     borderRadius: 'var(--radius-sm)',
-    color: isActive ? 'var(--primary-700)' : 'var(--slate-600)',
-    background: isActive ? 'var(--primary-50)' : 'transparent',
+    color: isActive ? 'var(--primary-500)' : 'var(--text-muted)',
+    background: isActive ? 'var(--info-box-bg)' : 'transparent',
     fontWeight: isActive ? 700 : 500,
     fontSize: '0.92rem',
     textDecoration: 'none',
     transition: 'all 0.15s ease',
-    marginBottom: '0.35rem'
+    marginBottom: '0.35rem',
+    borderLeft: isActive ? '3px solid var(--primary-600)' : '3px solid transparent'
   });
 
   return (
-    <aside style={{
-      width: '240px',
-      background: 'white',
-      borderRight: '1px solid var(--slate-200)',
-      padding: '1.5rem 1rem',
-      display: 'flex',
-      flexDirection: 'column',
-      minHeight: 'calc(100vh - 65px)'
-    }}>
-      <div style={{ marginBottom: '1.5rem', paddingLeft: '0.5rem' }}>
+    <aside className={`app-sidebar ${isOpen ? 'open' : ''}`}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', paddingLeft: '0.5rem' }}>
         <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--slate-400)', fontWeight: 700 }}>
           {isStudent ? 'Student Workspace' : 'Administrator Portal'}
         </span>
+        {onClose && (
+          <button className="mobile-close-btn" onClick={onClose} aria-label="Close Menu">
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
         {isStudent ? (
           <>
-            <NavLink to="/student/dashboard" style={linkStyle}>
+            <NavLink to="/student/dashboard" style={linkStyle} onClick={onClose}>
               <LayoutDashboard size={18} /> Dashboard
             </NavLink>
-            <NavLink to="/student/complaints/new" style={linkStyle}>
+            <NavLink to="/student/complaints/new" style={linkStyle} onClick={onClose}>
               <PlusCircle size={18} /> Submit Complaint
             </NavLink>
-            <NavLink to="/student/complaints" style={linkStyle}>
+            <NavLink to="/student/complaints" style={linkStyle} onClick={onClose}>
               <FileText size={18} /> My Complaints
             </NavLink>
-            <NavLink to="/student/history" style={linkStyle}>
+            <NavLink to="/student/history" style={linkStyle} onClick={onClose}>
               <History size={18} /> Complaint History
             </NavLink>
-            <NavLink to="/student/profile" style={linkStyle}>
+            <NavLink to="/student/login-history" style={linkStyle} onClick={onClose}>
+              <Clock size={18} /> Login History
+            </NavLink>
+            <NavLink to="/student/profile" style={linkStyle} onClick={onClose}>
               <User size={18} /> My Profile
             </NavLink>
           </>
         ) : (
           <>
-            <NavLink to="/admin/dashboard" style={linkStyle}>
+            <NavLink to="/admin/dashboard" style={linkStyle} onClick={onClose}>
               <LayoutDashboard size={18} /> Overview
             </NavLink>
-            <NavLink to="/admin/complaints" style={linkStyle}>
+            <NavLink to="/admin/complaints" style={linkStyle} onClick={onClose}>
               <FileText size={18} /> Manage Complaints
             </NavLink>
-            <NavLink to="/admin/departments" style={linkStyle}>
+            <NavLink to="/admin/departments" style={linkStyle} onClick={onClose}>
               <Building2 size={18} /> Departments
             </NavLink>
-            <NavLink to="/admin/staff" style={linkStyle}>
+            <NavLink to="/admin/staff" style={linkStyle} onClick={onClose}>
               <Users size={18} /> Staff Directory
             </NavLink>
-            <NavLink to="/admin/statistics" style={linkStyle}>
+            <NavLink to="/admin/statistics" style={linkStyle} onClick={onClose}>
               <BarChart3 size={18} /> Analytics & Stats
             </NavLink>
-            <NavLink to="/admin/login-history" style={linkStyle}>
-              <History size={18} /> Login Audit Logs
+            <NavLink to="/admin/login-history" style={linkStyle} onClick={onClose}>
+              <Clock size={18} /> Login Audit Logs
             </NavLink>
-            <NavLink to="/admin/profile" style={linkStyle}>
+            <NavLink to="/admin/profile" style={linkStyle} onClick={onClose}>
               <User size={18} /> Admin Profile
             </NavLink>
           </>

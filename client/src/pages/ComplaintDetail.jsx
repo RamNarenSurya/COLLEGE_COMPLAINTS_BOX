@@ -114,7 +114,7 @@ export default function ComplaintDetail() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
+      <div className="detail-grid">
         {/* Left Column: Complaint Details & Timeline */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Main Info Card */}
@@ -127,7 +127,7 @@ export default function ComplaintDetail() {
               {complaint.description}
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: 'var(--radius-sm)' }}>
+            <div className="info-two-col" style={{ background: '#f8fafc', padding: '1rem', borderRadius: 'var(--radius-sm)' }}>
               <div>
                 <span style={{ fontSize: '0.78rem', color: 'var(--slate-500)', fontWeight: 600 }}>Category</span>
                 <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{complaint.category}</div>

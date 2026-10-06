@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { ShieldCheck, User, Clock, Monitor, RefreshCw, KeyRound } from 'lucide-react';
+import StatCard from '../components/StatCard';
+import { ShieldCheck, User, Clock, Monitor, RefreshCw, Search, Users, Shield, Calendar } from 'lucide-react';
 
 export default function AdminLoginHistory() {
   const [logs, setLogs] = useState([]);
+  const [userCountMap, setUserCountMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filterRole, setFilterRole] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -14,6 +17,7 @@ export default function AdminLoginHistory() {
     try {
       const data = await api.getLoginHistory();
       setLogs(data.logs || []);
+      setUserCountMap(data.userCountMap || {});
     } catch (err) {
       setError('Failed to load login audit history.');
     } finally {
@@ -26,17 +30,32 @@ export default function AdminLoginHistory() {
   }, []);
 
   const filteredLogs = logs.filter((log) => {
-    if (filterRole === 'all') return true;
-    return log.role === filterRole;
+    const matchesRole = filterRole === 'all' || log.role === filterRole;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch = !q || 
+      (log.user_name && log.user_name.toLowerCase().includes(q)) ||
+      (log.email && log.email.toLowerCase().includes(q)) ||
+      (log.student_id && log.student_id.toLowerCase().includes(q)) ||
+      (log.ip_address && log.ip_address.includes(q));
+
+    return matchesRole && matchesSearch;
   });
+
+  const totalCount = logs.length;
+  const studentCount = logs.filter(l => l.role === 'student').length;
+  const adminCount = logs.filter(l => l.role === 'admin').length;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayCount = logs.filter(l => l.created_at && l.created_at.startsWith(todayStr)).length;
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0 }}>Login History & Audit Log</h1>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <ShieldCheck size={26} color="var(--primary-600)" /> Login Audit & User Access Logs
+          </h1>
           <p style={{ color: 'var(--slate-500)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
-            Real-time track of user authentications, timestamps, IP addresses, and device usage
+            Complete audit trail of all student and administrator login attempts, timestamps, and login frequency counts
           </p>
         </div>
         <button className="btn btn-secondary" onClick={fetchLogs} disabled={loading}>
@@ -50,30 +69,52 @@ export default function AdminLoginHistory() {
         </div>
       )}
 
-      {/* Filter Toolbar */}
-      <div className="card" style={{ padding: '1rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-        <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--slate-600)' }}>Filter by Role:</span>
-        <button
-          className={`btn ${filterRole === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
-          onClick={() => setFilterRole('all')}
-        >
-          All Logins ({logs.length})
-        </button>
-        <button
-          className={`btn ${filterRole === 'student' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
-          onClick={() => setFilterRole('student')}
-        >
-          Students Only ({logs.filter(l => l.role === 'student').length})
-        </button>
-        <button
-          className={`btn ${filterRole === 'admin' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
-          onClick={() => setFilterRole('admin')}
-        >
-          Admins Only ({logs.filter(l => l.role === 'admin').length})
-        </button>
+      {/* KPI Stats Grid */}
+      <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
+        <StatCard title="Total Recorded Logins" value={totalCount} icon={Users} color="var(--primary-600)" bg="var(--primary-50)" />
+        <StatCard title="Student Logins" value={studentCount} icon={User} color="#0284c7" bg="#e0f2fe" />
+        <StatCard title="Admin Logins" value={adminCount} icon={Shield} color="#dc2626" bg="#fef2f2" />
+        <StatCard title="Today's Logins" value={todayCount} icon={Calendar} color="#d97706" bg="#fef3c7" />
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="card" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--slate-600)', marginRight: '0.5rem' }}>Filter Role:</span>
+          <button
+            className={`btn ${filterRole === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
+            onClick={() => setFilterRole('all')}
+          >
+            All Logins ({logs.length})
+          </button>
+          <button
+            className={`btn ${filterRole === 'student' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
+            onClick={() => setFilterRole('student')}
+          >
+            Students Only ({studentCount})
+          </button>
+          <button
+            className={`btn ${filterRole === 'admin' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
+            onClick={() => setFilterRole('admin')}
+          >
+            Admins Only ({adminCount})
+          </button>
+        </div>
+
+        <div style={{ position: 'relative', minWidth: '260px' }}>
+          <Search size={16} color="var(--slate-400)" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)' }} />
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Search student, email, ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ paddingLeft: '2.25rem', height: '38px', fontSize: '0.85rem' }}
+          />
+        </div>
       </div>
 
       {/* Logs Table */}
@@ -84,51 +125,73 @@ export default function AdminLoginHistory() {
           </div>
         ) : filteredLogs.length === 0 ? (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--slate-500)' }}>
-            No login history recorded yet. Log in to generate records.
+            No matching login logs found.
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+          <div className="table-responsive">
+            <table className="table" style={{ margin: 0 }}>
               <thead>
-                <tr style={{ background: 'var(--slate-100)', borderBottom: '1px solid var(--slate-200)', color: 'var(--slate-600)' }}>
-                  <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>#</th>
-                  <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>User Name</th>
-                  <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>Email Address</th>
-                  <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>Role</th>
-                  <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>IP Address</th>
-                  <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>Device / Browser</th>
-                  <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>Login Timestamp</th>
+                <tr>
+                  <th>#</th>
+                  <th>User Name & ID</th>
+                  <th>Email Address</th>
+                  <th>Role</th>
+                  <th>Total User Logins</th>
+                  <th>IP Address</th>
+                  <th>Device / Browser</th>
+                  <th>Exact Login Time & Date</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredLogs.map((log, index) => (
-                  <tr key={log.id} style={{ borderBottom: '1px solid var(--slate-100)' }}>
-                    <td style={{ padding: '0.85rem 1.25rem', color: 'var(--slate-400)' }}>{index + 1}</td>
-                    <td style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <User size={16} color="var(--primary-600)" />
-                        {log.user_name}
-                      </div>
-                    </td>
-                    <td style={{ padding: '0.85rem 1.25rem', color: 'var(--slate-600)' }}>{log.email}</td>
-                    <td style={{ padding: '0.85rem 1.25rem' }}>
-                      <span className={`badge ${log.role === 'admin' ? 'badge-danger' : 'badge-info'}`}>
-                        {log.role.toUpperCase()}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.85rem 1.25rem', fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--slate-700)' }}>
-                      {log.ip_address || '127.0.0.1'}
-                    </td>
-                    <td style={{ padding: '0.85rem 1.25rem', fontSize: '0.82rem', color: 'var(--slate-500)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.user_agent}>
-                      <Monitor size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                      {log.user_agent}
-                    </td>
-                    <td style={{ padding: '0.85rem 1.25rem', color: 'var(--slate-600)', fontSize: '0.85rem' }}>
-                      <Clock size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                      {new Date(log.created_at).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
+                {filteredLogs.map((log, index) => {
+                  const userTotal = userCountMap[log.user_id] || 1;
+                  return (
+                    <tr key={log.id || index}>
+                      <td style={{ color: 'var(--slate-400)', fontWeight: 600 }}>{index + 1}</td>
+                      <td>
+                        <div style={{ fontWeight: 700, color: 'var(--slate-800)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <User size={15} color={log.role === 'admin' ? '#dc2626' : 'var(--primary-600)'} />
+                          {log.user_name}
+                        </div>
+                        {log.student_id && (
+                          <span style={{ fontSize: '0.78rem', color: 'var(--primary-700)', fontWeight: 700, fontFamily: 'monospace' }}>
+                            ID: {log.student_id}
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ color: 'var(--slate-600)', fontSize: '0.88rem' }}>{log.email}</td>
+                      <td>
+                        <span className={`badge ${log.role === 'admin' ? 'badge-danger' : 'badge-status-submitted'}`}>
+                          {log.role.toUpperCase()}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="badge badge-status-assigned" title={`This user has logged in ${userTotal} times`}>
+                          {userTotal} Login{userTotal > 1 ? 's' : ''} Total
+                        </span>
+                      </td>
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--slate-700)' }}>
+                        {log.ip_address || '127.0.0.1'}
+                      </td>
+                      <td style={{ fontSize: '0.82rem', color: 'var(--slate-500)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.user_agent}>
+                        <Monitor size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                        {log.user_agent}
+                      </td>
+                      <td style={{ color: 'var(--slate-700)', fontSize: '0.85rem', fontWeight: 600 }}>
+                        <Clock size={14} style={{ verticalAlign: 'middle', marginRight: '4px', color: 'var(--primary-600)' }} />
+                        {new Date(log.created_at).toLocaleString(undefined, {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          hour12: true
+                        })}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

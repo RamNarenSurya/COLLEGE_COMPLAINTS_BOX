@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
+import MobileBottomNav from './components/MobileBottomNav';
 
 // Public Pages
 import Landing from './pages/Landing';
@@ -15,6 +16,7 @@ import StudentComplaints from './pages/StudentComplaints';
 import NewComplaint from './pages/NewComplaint';
 import ComplaintDetail from './pages/ComplaintDetail';
 import StudentHistory from './pages/StudentHistory';
+import StudentLoginHistory from './pages/StudentLoginHistory';
 import StudentProfile from './pages/StudentProfile';
 
 // Admin Pages
@@ -48,12 +50,26 @@ function ProtectedRoute({ children, allowedRole }) {
 
 export default function App() {
   const { user } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const toggleSidebar = () => {
+    setSidebarOpen(prev => !prev);
+  };
+
+  const closeSidebar = () => {
+    setSidebarOpen(false);
+  };
 
   return (
     <div className="app-container">
-      <Navbar />
+      <Navbar onToggleSidebar={toggleSidebar} />
       <div className="main-layout">
-        {user && <Sidebar />}
+        {user && (
+          <>
+            {sidebarOpen && <div className="sidebar-backdrop" onClick={closeSidebar} />}
+            <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
+          </>
+        )}
         <main className="content-area">
           <Routes>
             {/* Public Routes */}
@@ -67,6 +83,7 @@ export default function App() {
             <Route path="/student/complaints/new" element={<ProtectedRoute allowedRole="student"><NewComplaint /></ProtectedRoute>} />
             <Route path="/student/complaints/:id" element={<ProtectedRoute allowedRole="student"><ComplaintDetail /></ProtectedRoute>} />
             <Route path="/student/history" element={<ProtectedRoute allowedRole="student"><StudentHistory /></ProtectedRoute>} />
+            <Route path="/student/login-history" element={<ProtectedRoute allowedRole="student"><StudentLoginHistory /></ProtectedRoute>} />
             <Route path="/student/profile" element={<ProtectedRoute allowedRole="student"><StudentProfile /></ProtectedRoute>} />
 
             {/* Admin Protected Routes */}
@@ -84,6 +101,8 @@ export default function App() {
           </Routes>
         </main>
       </div>
+      {user && <MobileBottomNav />}
     </div>
   );
 }
+

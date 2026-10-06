@@ -124,7 +124,7 @@ export default function NewComplaint() {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className="form-grid-2">
             <div className="form-group">
               <label className="form-label">Category *</label>
               <select
@@ -230,10 +230,10 @@ export default function NewComplaint() {
             </div>
           </div>
 
-          <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+          <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem', flexWrap: 'wrap' }}>
             <button
               type="submit"
-              className="btn btn-primary"
+              className="btn btn-primary mobile-full-width"
               style={{ padding: '0.75rem 1.75rem' }}
               disabled={submitting}
             >

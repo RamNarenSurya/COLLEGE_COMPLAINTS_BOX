@@ -390,8 +390,24 @@ router.get('/statistics', async (req, res) => {
 // 10. Audit / Login History
 router.get('/login-history', async (req, res) => {
   try {
-    const logs = await all(`SELECT * FROM login_logs ORDER BY created_at DESC LIMIT 100`);
-    res.json({ logs });
+    const logs = await all(`
+      SELECT l.*, u.student_id 
+      FROM login_logs l 
+      LEFT JOIN users u ON l.user_id = u.id 
+      ORDER BY l.created_at DESC 
+      LIMIT 300
+    `);
+
+    const userCounts = await all(`
+      SELECT user_id, COUNT(*) as total_count FROM login_logs GROUP BY user_id
+    `);
+
+    const userCountMap = {};
+    userCounts.forEach(item => {
+      userCountMap[item.user_id] = item.total_count;
+    });
+
+    res.json({ logs, userCountMap });
   } catch (err) {
     console.error('Fetch login history error:', err);
     res.status(500).json({ error: 'Failed to fetch login history.' });

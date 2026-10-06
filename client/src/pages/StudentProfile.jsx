@@ -32,7 +32,7 @@ export default function StudentProfile() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+        <div className="form-grid-2">
           <div>
             <span style={{ fontSize: '0.8rem', color: 'var(--slate-500)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <Mail size={14} /> Email Address

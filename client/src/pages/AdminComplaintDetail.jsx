@@ -199,7 +199,7 @@ export default function AdminComplaintDetail() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '1.5rem' }}>
+      <div className="detail-grid-admin">
         {/* Left Column: Complaint Details, Resolution Form & Timeline */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Main Info Card */}
@@ -212,7 +212,7 @@ export default function AdminComplaintDetail() {
               {complaint.description}
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: 'var(--radius-sm)' }}>
+            <div className="info-three-col" style={{ background: '#f8fafc', padding: '1rem', borderRadius: 'var(--radius-sm)' }}>
               <div>
                 <span style={{ fontSize: '0.78rem', color: 'var(--slate-500)', fontWeight: 600 }}>Submitted By Student</span>
                 <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{complaint.student_name}</div>

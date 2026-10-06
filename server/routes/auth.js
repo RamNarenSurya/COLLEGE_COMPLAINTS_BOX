@@ -50,6 +50,14 @@ router.post('/register', async (req, res) => {
       [result.lastID]
     );
 
+    // Record initial Audit Log Entry for new student registration
+    const ip_address = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || '127.0.0.1';
+    const user_agent = req.headers['user-agent'] || 'Unknown';
+    await run(
+      `INSERT INTO login_logs (user_id, user_name, email, role, ip_address, user_agent) VALUES (?, ?, ?, 'student', ?, ?)`,
+      [newUser.id, newUser.name, newUser.email, ip_address, user_agent]
+    );
+
     const token = jwt.sign(
       { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role },
       JWT_SECRET,
@@ -146,6 +154,29 @@ router.get('/me', authenticateToken, async (req, res) => {
     res.json({ user });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch user details' });
+  }
+});
+
+// Current User Login History
+router.get('/login-history', authenticateToken, async (req, res) => {
+  try {
+    const logs = await all(
+      `SELECT * FROM login_logs WHERE user_id = ? ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+
+    const totalLogins = logs.length;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayLogins = logs.filter(l => l.created_at && l.created_at.startsWith(todayStr)).length;
+
+    res.json({
+      logs,
+      totalLogins,
+      todayLogins
+    });
+  } catch (err) {
+    console.error('Fetch student login history error:', err);
+    res.status(500).json({ error: 'Failed to fetch login history.' });
   }
 });
 

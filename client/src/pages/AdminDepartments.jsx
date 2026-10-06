@@ -159,7 +159,7 @@ export default function AdminDepartments() {
           justifyContent: 'center',
           zIndex: 1000
         }}>
-          <div className="card" style={{ width: '480px', background: 'white' }}>
+          <div className="card" style={{ width: '480px', maxWidth: '92vw', background: 'white' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '1.25rem' }}>
               {editId ? 'Edit Department' : 'Create New Department'}
             </h3>
