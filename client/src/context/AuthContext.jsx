@@ -42,13 +42,19 @@ export const AuthProvider = ({ children }) => {
     return data.user;
   };
 
+  const updateProfile = async (profileData) => {
+    const data = await api.updateProfile(profileData);
+    setUser(data.user);
+    return data.user;
+  };
+
   const logout = () => {
     setAuthToken(null);
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateProfile, setUser }}>
       {children}
     </AuthContext.Provider>
   );

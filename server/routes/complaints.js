@@ -174,6 +174,61 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Edit Complaint Details (Student can edit any of their submitted issues)
+router.put('/:id', authenticateToken, requireRole('student'), upload.single('attachment'), async (req, res) => {
+  try {
+    const complaintId = req.params.id;
+    const { title, category, description, location, priority } = req.body;
+
+    const complaint = await get(`SELECT * FROM complaints WHERE id = ? AND student_id = ?`, [complaintId, req.user.id]);
+    if (!complaint) {
+      return res.status(404).json({ error: 'Complaint not found or you do not have permission to edit it.' });
+    }
+
+    if (complaint.status === 'Closed') {
+      return res.status(400).json({ error: 'Closed complaints cannot be edited.' });
+    }
+
+    const updatedTitle = title ? title.trim() : complaint.title;
+    const updatedCategory = category ? category.trim() : complaint.category;
+    const updatedDescription = description ? description.trim() : complaint.description;
+    const updatedLocation = location ? location.trim() : complaint.location;
+    const updatedPriority = priority && ['Low', 'Medium', 'High', 'Critical'].includes(priority) ? priority : complaint.priority;
+
+    await run(
+      `UPDATE complaints SET title = ?, category = ?, description = ?, location = ?, priority = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [updatedTitle, updatedCategory, updatedDescription, updatedLocation, updatedPriority, complaintId]
+    );
+
+    // Handle new file attachment if uploaded
+    if (req.file) {
+      const file_url = `/uploads/${req.file.filename}`;
+      await run(
+        `INSERT INTO complaint_attachments (complaint_id, file_name, file_url, file_type, file_size)
+         VALUES (?, ?, ?, ?, ?)`,
+        [complaintId, req.file.originalname, file_url, req.file.mimetype, req.file.size]
+      );
+    }
+
+    // Add timeline entry
+    await run(
+      `INSERT INTO complaint_updates (complaint_id, user_id, user_name, user_role, status, comment)
+       VALUES (?, ?, ?, 'student', ?, ?)`,
+      [complaintId, req.user.id, req.user.name, complaint.status, 'Student updated issue details (title, description, or location).']
+    );
+
+    const updatedComplaint = await get(`SELECT * FROM complaints WHERE id = ?`, [complaintId]);
+
+    res.json({
+      message: 'Complaint updated successfully',
+      complaint: updatedComplaint
+    });
+  } catch (err) {
+    console.error('Edit complaint error:', err);
+    res.status(500).json({ error: 'Failed to update complaint details.' });
+  }
+});
+
 // 4. Update/Close Complaint (Student Confirmation on Resolved status)
 router.patch('/:id', authenticateToken, requireRole('student'), async (req, res) => {
   try {

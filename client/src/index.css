@@ -748,6 +748,20 @@ textarea.form-control {
     display: none !important;
   }
 
+  .user-avatar-hide-mobile {
+    display: none !important;
+  }
+
+  .mobile-logout-btn {
+    padding: 0.4rem 0.75rem !important;
+    font-size: 0.82rem !important;
+    font-weight: 700 !important;
+  }
+
+  .logout-btn-label {
+    display: inline !important;
+  }
+
   .report-issue-text {
     display: none;
   }

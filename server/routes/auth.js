@@ -180,6 +180,66 @@ router.get('/login-history', authenticateToken, async (req, res) => {
   }
 });
 
+// Update Current User Profile (no re-registration needed!)
+router.put('/profile', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { name, email, phone, department_id, year, password, currentPassword } = req.body;
+
+    const user = await get(`SELECT * FROM users WHERE id = ?`, [userId]);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Email duplicate check if email changed
+    if (email && email !== user.email) {
+      const existing = await get(`SELECT id FROM users WHERE email = ? AND id != ?`, [email, userId]);
+      if (existing) {
+        return res.status(400).json({ error: 'Email address is already in use by another user.' });
+      }
+    }
+
+    let password_hash = user.password_hash;
+    if (password && password.trim().length > 0) {
+      if (password.trim().length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+      }
+      if (currentPassword) {
+        const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+        if (!isMatch) {
+          return res.status(400).json({ error: 'Current password is incorrect.' });
+        }
+      }
+      password_hash = await bcrypt.hash(password.trim(), 10);
+    }
+
+    const updatedName = name ? name.trim() : user.name;
+    const updatedEmail = email ? email.trim() : user.email;
+    const updatedPhone = phone !== undefined ? phone : user.phone;
+    const updatedDept = department_id !== undefined ? department_id : user.department_id;
+    const updatedYear = year !== undefined ? year : user.year;
+
+    await run(
+      `UPDATE users SET name = ?, email = ?, phone = ?, department_id = ?, year = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [updatedName, updatedEmail, updatedPhone, updatedDept, updatedYear, password_hash, userId]
+    );
+
+    const updatedUser = await get(
+      `SELECT u.id, u.name, u.student_id, u.email, u.role, u.department_id, d.name as department_name, u.year, u.phone 
+       FROM users u LEFT JOIN departments d ON u.department_id = d.id WHERE u.id = ?`,
+      [userId]
+    );
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: updatedUser
+    });
+  } catch (err) {
+    console.error('Update profile error:', err);
+    res.status(500).json({ error: 'Failed to update profile.' });
+  }
+});
+
 // Logout
 router.post('/logout', (req, res) => {
   res.json({ message: 'Logged out successfully' });

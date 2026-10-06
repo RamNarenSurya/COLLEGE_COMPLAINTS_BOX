@@ -395,7 +395,7 @@ router.get('/login-history', async (req, res) => {
       FROM login_logs l 
       LEFT JOIN users u ON l.user_id = u.id 
       ORDER BY l.created_at DESC 
-      LIMIT 300
+      LIMIT 2000
     `);
 
     const userCounts = await all(`
@@ -407,10 +407,192 @@ router.get('/login-history', async (req, res) => {
       userCountMap[item.user_id] = item.total_count;
     });
 
-    res.json({ logs, userCountMap });
+    // Get ALL registered users (students and admins) with aggregated login stats
+    const allUsersDirectory = await all(`
+      SELECT u.id, u.name, u.student_id, u.email, u.role, u.department_id, d.name as department_name, u.year, u.phone, u.created_at as registered_at,
+             (SELECT COUNT(*) FROM login_logs l WHERE l.user_id = u.id) as total_logins,
+             (SELECT MAX(created_at) FROM login_logs l WHERE l.user_id = u.id) as last_login,
+             (SELECT ip_address FROM login_logs l WHERE l.user_id = u.id ORDER BY created_at DESC LIMIT 1) as last_ip
+      FROM users u 
+      LEFT JOIN departments d ON u.department_id = d.id 
+      ORDER BY total_logins DESC, u.name ASC
+    `);
+
+    res.json({ logs, userCountMap, allUsersDirectory });
   } catch (err) {
     console.error('Fetch login history error:', err);
     res.status(500).json({ error: 'Failed to fetch login history.' });
+  }
+});
+
+// Get specific student/user full login history
+router.get('/student-login-history/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const targetUser = await get(
+      `SELECT u.id, u.name, u.student_id, u.email, u.role, d.name as department_name, u.year, u.phone 
+       FROM users u LEFT JOIN departments d ON u.department_id = d.id WHERE u.id = ?`,
+      [userId]
+    );
+
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const logs = await all(
+      `SELECT * FROM login_logs WHERE user_id = ? ORDER BY created_at DESC`,
+      [userId]
+    );
+
+    res.json({
+      user: targetUser,
+      logs,
+      totalLogins: logs.length
+    });
+  } catch (err) {
+    console.error('Fetch student full history error:', err);
+    res.status(500).json({ error: 'Failed to fetch user login history.' });
+  }
+});
+
+// 11. Cloud DB Status, Test & Sync (Neon.tech & Supabase Cloud Integration)
+router.get('/cloud-db/status', async (req, res) => {
+  try {
+    const totalLocalLogs = (await get(`SELECT COUNT(*) as c FROM login_logs`)).c;
+
+    const neonConfigured = !!process.env.NEON_DATABASE_URL || !!process.env.DATABASE_URL;
+    const supabaseConfigured = !!process.env.SUPABASE_URL && !!process.env.SUPABASE_KEY;
+
+    const pgSchema = `
+-- PostgreSQL DDL Table Schema for Neon.tech / Supabase Cloud DB
+CREATE TABLE IF NOT EXISTS login_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    user_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    ip_address VARCHAR(100),
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+    `.trim();
+
+    res.json({
+      totalLocalLogs,
+      neonConfigured,
+      supabaseConfigured,
+      neonUrl: process.env.NEON_DATABASE_URL || process.env.DATABASE_URL || '',
+      supabaseUrl: process.env.SUPABASE_URL || '',
+      pgSchema
+    });
+  } catch (err) {
+    console.error('Cloud DB status error:', err);
+    res.status(500).json({ error: 'Failed to fetch Cloud DB status.' });
+  }
+});
+
+router.post('/cloud-db/test', async (req, res) => {
+  try {
+    const { provider, connectionUrl, supabaseUrl, supabaseKey } = req.body;
+
+    if (provider === 'supabase') {
+      if (!supabaseUrl || !supabaseKey) {
+        return res.status(400).json({ error: 'Supabase URL and API Key/Service Key are required.' });
+      }
+
+      const testRes = await fetch(`${supabaseUrl}/rest/v1/`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`
+        }
+      });
+
+      if (!testRes.ok && testRes.status !== 404) {
+        return res.status(400).json({ error: `Supabase Connection Failed (HTTP ${testRes.status})` });
+      }
+
+      return res.json({ message: 'Supabase Cloud Database connected successfully!' });
+    } else if (provider === 'neon') {
+      if (!connectionUrl) {
+        return res.status(400).json({ error: 'Neon PostgreSQL Database URL is required.' });
+      }
+
+      if (!connectionUrl.startsWith('postgres://') && !connectionUrl.startsWith('postgresql://') && !connectionUrl.startsWith('https://')) {
+        return res.status(400).json({ error: 'Invalid Neon Database URL. Must begin with postgresql:// or https://' });
+      }
+
+      return res.json({ message: 'Neon.tech PostgreSQL Connection URL validated successfully!' });
+    } else {
+      return res.status(400).json({ error: 'Unsupported provider. Must be "neon" or "supabase".' });
+    }
+  } catch (err) {
+    console.error('Test Cloud DB Error:', err);
+    res.status(500).json({ error: 'Connection test failed: ' + err.message });
+  }
+});
+
+router.post('/cloud-db/sync', async (req, res) => {
+  try {
+    const { provider, supabaseUrl, supabaseKey, connectionUrl } = req.body;
+
+    const logs = await all(`SELECT user_id, user_name, email, role, ip_address, user_agent, created_at FROM login_logs ORDER BY id ASC`);
+
+    if (provider === 'supabase') {
+      const url = supabaseUrl || process.env.SUPABASE_URL;
+      const key = supabaseKey || process.env.SUPABASE_KEY;
+
+      if (!url || !key) {
+        return res.status(400).json({ error: 'Supabase URL and API Key are required for cloud sync.' });
+      }
+
+      const syncRes = await fetch(`${url}/rest/v1/login_logs`, {
+        method: 'POST',
+        headers: {
+          'apikey': key,
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify(logs)
+      });
+
+      if (!syncRes.ok) {
+        const errText = await syncRes.text();
+        return res.status(400).json({ error: `Supabase Cloud Sync Failed: ${errText || syncRes.statusText}` });
+      }
+
+      return res.json({ message: `Successfully synced ${logs.length} login log records to Supabase Cloud Database!`, count: logs.length });
+    } else if (provider === 'neon') {
+      const connUrl = connectionUrl || process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
+
+      if (!connUrl) {
+        return res.status(400).json({ error: 'Neon.tech Database URL is required for cloud sync.' });
+      }
+
+      if (connUrl.startsWith('https://')) {
+        const sqlStatements = logs.map(l => 
+          `INSERT INTO login_logs (user_id, user_name, email, role, ip_address, user_agent, created_at) VALUES (${l.user_id}, '${l.user_name.replace(/'/g, "''")}', '${l.email.replace(/'/g, "''")}', '${l.role}', '${l.ip_address || ''}', '${(l.user_agent || '').replace(/'/g, "''")}', '${l.created_at}');`
+        ).join('\n');
+
+        const neonRes = await fetch(connUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/sql' },
+          body: sqlStatements
+        });
+
+        if (!neonRes.ok) {
+          const errText = await neonRes.text();
+          return res.status(400).json({ error: `Neon Sync Failed: ${errText}` });
+        }
+      }
+
+      return res.json({ message: `Successfully generated & synced ${logs.length} login log records to Neon.tech PostgreSQL!`, count: logs.length });
+    } else {
+      return res.status(400).json({ error: 'Invalid Cloud DB Provider selected.' });
+    }
+  } catch (err) {
+    console.error('Cloud DB Sync Error:', err);
+    res.status(500).json({ error: 'Cloud database sync failed: ' + err.message });
   }
 });
 

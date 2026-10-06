@@ -204,19 +204,53 @@ export default function AdminComplaintDetail() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Main Info Card */}
           <div className="card">
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem', borderBottom: '1px solid var(--slate-200)', paddingBottom: '0.5rem' }}>
-              Complaint Overview & Description
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FileText size={18} color="var(--primary-600)" /> Full Student Typed Issue Description
+              </h3>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(complaint.description);
+                  alert('Full issue text copied to clipboard!');
+                }}
+                title="Copy Issue Text"
+              >
+                Copy Text
+              </button>
+            </div>
 
-            <p style={{ whiteSpace: 'pre-line', fontSize: '0.95rem', color: 'var(--slate-700)', lineHeight: 1.6, marginBottom: '1.5rem' }}>
+            <div style={{
+              background: 'var(--info-box-bg)',
+              border: '1px solid var(--info-box-border)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '1.25rem',
+              marginBottom: '1.5rem',
+              fontSize: '1rem',
+              color: 'var(--text-main)',
+              lineHeight: 1.7,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              overflowWrap: 'break-word',
+              maxHeight: '500px',
+              overflowY: 'auto'
+            }}>
               {complaint.description}
-            </p>
+            </div>
 
             <div className="info-three-col" style={{ background: '#f8fafc', padding: '1rem', borderRadius: 'var(--radius-sm)' }}>
               <div>
                 <span style={{ fontSize: '0.78rem', color: 'var(--slate-500)', fontWeight: 600 }}>Submitted By Student</span>
                 <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{complaint.student_name}</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)' }}>{complaint.student_code} ({complaint.student_email})</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)' }}>
+                  ID: {complaint.student_code || 'N/A'} | {complaint.student_email}
+                </div>
+                {complaint.student_phone && (
+                  <div style={{ fontSize: '0.78rem', color: 'var(--primary-700)', fontWeight: 600, marginTop: '2px' }}>
+                    📞 {complaint.student_phone} {complaint.student_year ? `| Year ${complaint.student_year}` : ''}
+                  </div>
+                )}
               </div>
               <div>
                 <span style={{ fontSize: '0.78rem', color: 'var(--slate-500)', fontWeight: 600 }}>Category</span>

@@ -45,12 +45,17 @@ export const api = {
   register: (userData) => request('/auth/register', { method: 'POST', body: JSON.stringify(userData) }),
   login: (credentials) => request('/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
   getMe: () => request('/auth/me'),
+  updateProfile: (profileData) => request('/auth/profile', { method: 'PUT', body: JSON.stringify(profileData) }),
 
   // Departments & Staff (Public / General)
   getDepartments: (includeInactive = false) => request(`/departments?includeInactive=${includeInactive}`),
 
   // Student APIs
   submitComplaint: (formData) => request('/complaints', { method: 'POST', body: formData }),
+  editComplaint: (id, formData) => request(`/complaints/${id}`, { 
+    method: 'PUT', 
+    body: formData instanceof FormData ? formData : JSON.stringify(formData) 
+  }),
   getMyComplaints: () => request('/complaints/my'),
   getComplaintDetail: (id) => request(`/complaints/${id}`),
   updateStudentComplaint: (id, action, comment) => request(`/complaints/${id}`, { method: 'PATCH', body: JSON.stringify({ action, comment }) }),
@@ -71,6 +76,10 @@ export const api = {
   addResolution: (id, resolutionData) => request(`/admin/complaints/${id}/resolution`, { method: 'POST', body: JSON.stringify(resolutionData) }),
   getStatistics: () => request('/admin/statistics'),
   getLoginHistory: () => request('/admin/login-history'),
+  getStudentFullLoginHistory: (userId) => request(`/admin/student-login-history/${userId}`),
+  getCloudDbStatus: () => request('/admin/cloud-db/status'),
+  testCloudDbConnection: (config) => request('/admin/cloud-db/test', { method: 'POST', body: JSON.stringify(config) }),
+  syncCloudDb: (config) => request('/admin/cloud-db/sync', { method: 'POST', body: JSON.stringify(config) }),
 
   // Admin Department & Staff Management
   createDepartment: (deptData) => request('/departments', { method: 'POST', body: JSON.stringify(deptData) }),

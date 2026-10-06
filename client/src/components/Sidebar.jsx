@@ -12,6 +12,7 @@ import {
   BarChart3, 
   ShieldAlert,
   Clock,
+  Settings,
   X
 } from 'lucide-react';
 
@@ -71,6 +72,9 @@ export default function Sidebar({ isOpen, onClose }) {
             <NavLink to="/student/profile" style={linkStyle} onClick={onClose}>
               <User size={18} /> My Profile
             </NavLink>
+            <NavLink to="/settings" style={linkStyle} onClick={onClose}>
+              <Settings size={18} /> Settings & Theme
+            </NavLink>
           </>
         ) : (
           <>
@@ -94,6 +98,9 @@ export default function Sidebar({ isOpen, onClose }) {
             </NavLink>
             <NavLink to="/admin/profile" style={linkStyle} onClick={onClose}>
               <User size={18} /> Admin Profile
+            </NavLink>
+            <NavLink to="/settings" style={linkStyle} onClick={onClose}>
+              <Settings size={18} /> Settings & Theme
             </NavLink>
           </>
         )}

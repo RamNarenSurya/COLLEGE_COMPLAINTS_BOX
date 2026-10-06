@@ -16,7 +16,10 @@ import {
   RefreshCw, 
   Star, 
   MessageSquare,
-  AlertTriangle
+  AlertTriangle,
+  Edit,
+  Save,
+  X
 } from 'lucide-react';
 
 export default function ComplaintDetail() {
@@ -33,6 +36,14 @@ export default function ComplaintDetail() {
   const [reopenReason, setReopenReason] = useState('');
   const [showReopenModal, setShowReopenModal] = useState(false);
 
+  // Edit Issue state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editPriority, setEditPriority] = useState('Medium');
+
   useEffect(() => {
     loadComplaintDetail();
   }, [id]);
@@ -41,6 +52,13 @@ export default function ComplaintDetail() {
     try {
       const res = await api.getComplaintDetail(id);
       setData(res);
+      if (res.complaint) {
+        setEditTitle(res.complaint.title || '');
+        setEditCategory(res.complaint.category || '');
+        setEditDescription(res.complaint.description || '');
+        setEditLocation(res.complaint.location || '');
+        setEditPriority(res.complaint.priority || 'Medium');
+      }
     } catch (err) {
       setError(err.message || 'Failed to fetch complaint detail.');
     } finally {
@@ -56,6 +74,27 @@ export default function ComplaintDetail() {
       setShowReopenModal(false);
     } catch (err) {
       alert('Action failed: ' + err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setActionLoading(true);
+    try {
+      await api.editComplaint(id, {
+        title: editTitle,
+        category: editCategory,
+        description: editDescription,
+        location: editLocation,
+        priority: editPriority
+      });
+      alert('Complaint details updated successfully!');
+      setShowEditModal(false);
+      await loadComplaintDetail();
+    } catch (err) {
+      alert('Failed to edit complaint: ' + err.message);
     } finally {
       setActionLoading(false);
     }
@@ -109,10 +148,113 @@ export default function ComplaintDetail() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {complaint.status !== 'Closed' && (
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="btn btn-secondary btn-sm"
+              title="Edit submitted complaint details"
+            >
+              <Edit size={16} /> Edit Issue
+            </button>
+          )}
           <PriorityBadge priority={complaint.priority} />
           <StatusBadge status={complaint.status} />
         </div>
       </div>
+
+      {/* Edit Issue Modal / Card */}
+      {showEditModal && (
+        <div className="card" style={{ marginBottom: '1.5rem', border: '2px solid var(--primary-600)', background: 'var(--bg-card)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', borderBottom: '1px solid var(--slate-200)', paddingBottom: '0.5rem' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Edit size={20} color="var(--primary-600)" /> Edit Submitted Issue
+            </h3>
+            <button onClick={() => setShowEditModal(false)} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem' }}>
+              <X size={18} />
+            </button>
+          </div>
+
+          <form onSubmit={handleEditSubmit}>
+            <div className="form-group">
+              <label className="form-label">Issue Title *</label>
+              <input
+                type="text"
+                className="form-control"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-grid-3">
+              <div className="form-group">
+                <label className="form-label">Category *</label>
+                <select
+                  className="form-control"
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  required
+                >
+                  <option value="Infrastructure">Infrastructure & Building</option>
+                  <option value="IT & Network">IT & Wi-Fi Network</option>
+                  <option value="Electrical">Electrical & Power</option>
+                  <option value="Plumbing">Plumbing & Water</option>
+                  <option value="Cleanliness">Cleanliness & Sanitization</option>
+                  <option value="Hostel & Mess">Hostel & Mess Amenities</option>
+                  <option value="Academic">Academic & Library</option>
+                  <option value="Security">Security & Safety</option>
+                  <option value="Other">Other Issues</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Location / Room No. *</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={editLocation}
+                  onChange={(e) => setEditLocation(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Priority</label>
+                <select
+                  className="form-control"
+                  value={editPriority}
+                  onChange={(e) => setEditPriority(e.target.value)}
+                >
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Critical">Critical</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Detailed Issue Description *</label>
+              <textarea
+                className="form-control"
+                rows="4"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                required
+              ></textarea>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setShowEditModal(false)} className="btn btn-secondary">
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={actionLoading}>
+                <Save size={16} /> Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="detail-grid">
         {/* Left Column: Complaint Details & Timeline */}

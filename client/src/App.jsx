@@ -29,6 +29,9 @@ import AdminStatistics from './pages/AdminStatistics';
 import AdminLoginHistory from './pages/AdminLoginHistory';
 import AdminProfile from './pages/AdminProfile';
 
+// General Logged In Pages
+import Settings from './pages/Settings';
+
 function ProtectedRoute({ children, allowedRole }) {
   const { user, loading } = useAuth();
 
@@ -76,6 +79,9 @@ export default function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+
+            {/* General Logged-In User Settings */}
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 
             {/* Student Protected Routes */}
             <Route path="/student/dashboard" element={<ProtectedRoute allowedRole="student"><StudentDashboard /></ProtectedRoute>} />

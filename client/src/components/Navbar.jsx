@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { LogOut, PlusCircle, LayoutDashboard, Menu, Sun, Moon } from 'lucide-react';
+import { LogOut, PlusCircle, LayoutDashboard, Menu, Sun, Moon, Settings } from 'lucide-react';
 
 export default function Navbar({ onToggleSidebar }) {
   const { user, logout } = useAuth();
@@ -70,7 +70,7 @@ export default function Navbar({ onToggleSidebar }) {
                   <Link to="/student/dashboard" className="btn btn-secondary btn-sm nav-btn-hide-mobile">
                     <LayoutDashboard size={16} /> Dashboard
                   </Link>
-                  <Link to="/student/complaints/new" className="btn btn-primary btn-sm">
+                  <Link to="/student/complaints/new" className="btn btn-primary btn-sm nav-btn-hide-mobile">
                     <PlusCircle size={16} /> <span className="report-issue-text">Report Issue</span>
                   </Link>
                 </>
@@ -82,9 +82,19 @@ export default function Navbar({ onToggleSidebar }) {
                 </>
               )}
 
-              {/* User Dropdown Profile info */}
+              {/* User Actions & Logout */}
               <div className="user-profile-bar">
-                <div style={{
+                <Link
+                  to="/settings"
+                  className="btn btn-secondary btn-sm"
+                  title="Settings & Preferences"
+                  style={{ padding: '0.4rem 0.6rem' }}
+                >
+                  <Settings size={16} />
+                </Link>
+
+                {/* Profile Icon / Avatar - Hidden on Mobile View */}
+                <div className="user-avatar-hide-mobile" style={{
                   width: '34px',
                   height: '34px',
                   borderRadius: '50%',
@@ -99,6 +109,7 @@ export default function Navbar({ onToggleSidebar }) {
                 }}>
                   {user.name ? user.name.charAt(0) : 'U'}
                 </div>
+
                 <div className="user-details-hide-mobile" style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.1 }}>
                     {user.name}
@@ -107,13 +118,14 @@ export default function Navbar({ onToggleSidebar }) {
                     {user.role} {user.student_id ? `(${user.student_id})` : ''}
                   </span>
                 </div>
+
+                {/* Clearly visible Logout button option on top right */}
                 <button
                   onClick={handleLogout}
-                  className="btn btn-secondary btn-sm"
-                  title="Logout"
-                  style={{ padding: '0.4rem 0.6rem' }}
+                  className="btn btn-danger btn-sm mobile-logout-btn"
+                  title="Logout Account"
                 >
-                  <LogOut size={16} />
+                  <LogOut size={16} /> <span className="logout-btn-label">Logout</span>
                 </button>
               </div>
             </>
