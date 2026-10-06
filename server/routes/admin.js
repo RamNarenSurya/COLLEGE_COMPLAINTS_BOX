@@ -513,15 +513,24 @@ router.post('/cloud-db/test', async (req, res) => {
 
       return res.json({ message: 'Supabase Cloud Database connected successfully!' });
     } else if (provider === 'neon') {
-      if (!connectionUrl) {
-        return res.status(400).json({ error: 'Neon PostgreSQL Database URL is required.' });
+      const connUrl = connectionUrl || process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
+
+      if (!connUrl) {
+        return res.status(400).json({ error: 'Neon.tech Database URL is required.' });
       }
 
-      if (!connectionUrl.startsWith('postgres://') && !connectionUrl.startsWith('postgresql://') && !connectionUrl.startsWith('https://')) {
+      if (connUrl.startsWith('postgresql://') || connUrl.startsWith('postgres://')) {
+        const { Client } = require('pg');
+        const client = new Client({ connectionString: connUrl, ssl: { rejectUnauthorized: false } });
+        await client.connect();
+        await client.query('SELECT 1;');
+        await client.end();
+        return res.json({ message: 'Neon.tech PostgreSQL Cloud Database connected & verified successfully!' });
+      } else if (connUrl.startsWith('https://')) {
+        return res.json({ message: 'Neon.tech HTTP Connection URL validated successfully!' });
+      } else {
         return res.status(400).json({ error: 'Invalid Neon Database URL. Must begin with postgresql:// or https://' });
       }
-
-      return res.json({ message: 'Neon.tech PostgreSQL Connection URL validated successfully!' });
     } else {
       return res.status(400).json({ error: 'Unsupported provider. Must be "neon" or "supabase".' });
     }
@@ -569,7 +578,48 @@ router.post('/cloud-db/sync', async (req, res) => {
         return res.status(400).json({ error: 'Neon.tech Database URL is required for cloud sync.' });
       }
 
-      if (connUrl.startsWith('https://')) {
+      if (connUrl.startsWith('postgresql://') || connUrl.startsWith('postgres://')) {
+        const { Client } = require('pg');
+        const client = new Client({ connectionString: connUrl, ssl: { rejectUnauthorized: false } });
+        await client.connect();
+
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS login_logs (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL,
+            user_name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) NOT NULL,
+            role VARCHAR(50) NOT NULL,
+            ip_address VARCHAR(100),
+            user_agent TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+
+        for (const l of logs) {
+          await client.query(
+            `INSERT INTO login_logs (user_id, user_name, email, role, ip_address, user_agent, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              l.user_id,
+              l.user_name || '',
+              l.email || '',
+              l.role || 'student',
+              l.ip_address || '',
+              l.user_agent || '',
+              l.created_at
+            ]
+          );
+        }
+
+        const countRes = await client.query('SELECT COUNT(*) FROM login_logs;');
+        await client.end();
+
+        return res.json({
+          message: `Successfully synced ${logs.length} login log records directly to Neon.tech PostgreSQL Cloud Database! (Total in Neon DB: ${countRes.rows[0].count})`,
+          count: logs.length
+        });
+      } else if (connUrl.startsWith('https://')) {
         const sqlStatements = logs.map(l => 
           `INSERT INTO login_logs (user_id, user_name, email, role, ip_address, user_agent, created_at) VALUES (${l.user_id}, '${(l.user_name || '').replace(/'/g, "''")}', '${(l.email || '').replace(/'/g, "''")}', '${l.role || 'student'}', '${l.ip_address || ''}', '${(l.user_agent || '').replace(/'/g, "''")}', '${l.created_at}');`
         ).join('\n');
@@ -584,9 +634,11 @@ router.post('/cloud-db/sync', async (req, res) => {
           const errText = await neonRes.text();
           return res.status(400).json({ error: `Neon Sync Failed: ${errText}` });
         }
-      }
 
-      return res.json({ message: `Successfully generated & synced ${logs.length} login log records to Neon.tech PostgreSQL!`, count: logs.length });
+        return res.json({ message: `Successfully synced ${logs.length} login log records to Neon.tech PostgreSQL!`, count: logs.length });
+      } else {
+        return res.status(400).json({ error: 'Invalid Neon Database URL. Must begin with postgresql:// or https://' });
+      }
     } else {
       return res.status(400).json({ error: 'Invalid Cloud DB Provider selected.' });
     }
