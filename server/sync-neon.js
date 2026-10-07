@@ -49,10 +49,9 @@ async function syncToNeon() {
 
   for (const u of users) {
     await client.query(
-      `INSERT INTO users (id, name, student_id, email, password_hash, role, department_id, year, phone, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO users (name, student_id, email, password_hash, role, department_id, year, phone, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT (email) DO UPDATE SET
-         id = EXCLUDED.id,
          name = EXCLUDED.name,
          student_id = EXCLUDED.student_id,
          password_hash = COALESCE(EXCLUDED.password_hash, users.password_hash),
@@ -62,7 +61,6 @@ async function syncToNeon() {
          phone = EXCLUDED.phone,
          updated_at = EXCLUDED.updated_at`,
       [
-        u.id,
         u.name,
         u.student_id || null,
         u.email,

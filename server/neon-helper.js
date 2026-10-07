@@ -3,8 +3,10 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const { Client } = require('pg');
 
 function getNeonClient() {
-  const url = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
+  let url = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
   if (!url) return null;
+  // Automatically strip '-pooler' from hostname to prevent DNS pooler lookup failures
+  url = url.replace('-pooler.c-6', '.c-6');
   return new Client({
     connectionString: url,
     ssl: { rejectUnauthorized: false }
@@ -18,7 +20,7 @@ async function initNeonTables(client) {
   // 1. users table
   await client.query(`
     CREATE TABLE IF NOT EXISTS users (
-      id INT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       name VARCHAR(255) NOT NULL,
       student_id VARCHAR(100),
       email VARCHAR(255) UNIQUE NOT NULL,
@@ -31,6 +33,10 @@ async function initNeonTables(client) {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // Ensure id sequence exists for legacy INT PRIMARY KEY tables
+  await client.query(`CREATE SEQUENCE IF NOT EXISTS users_id_seq;`).catch(() => {});
+  await client.query(`ALTER TABLE users ALTER COLUMN id SET DEFAULT nextval('users_id_seq');`).catch(() => {});
 
   // Ensure password_hash column exists in legacy tables
   await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;`).catch(() => {});
@@ -101,12 +107,11 @@ async function saveRegistrationToNeon(newUser, ipAddress = '', userAgent = '') {
     await client.connect();
     await initNeonTables(client);
 
-    // Insert or update user record in Neon using ON CONFLICT (email)
+    // Insert or update user record in Neon PostgreSQL using ON CONFLICT (email) without forcing ID primary key collisions
     await client.query(
-      `INSERT INTO users (id, name, student_id, email, password_hash, role, department_id, year, phone)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO users (name, student_id, email, password_hash, role, department_id, year, phone)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (email) DO UPDATE SET
-         id = EXCLUDED.id,
          name = EXCLUDED.name,
          student_id = EXCLUDED.student_id,
          password_hash = COALESCE(EXCLUDED.password_hash, users.password_hash),
@@ -116,7 +121,6 @@ async function saveRegistrationToNeon(newUser, ipAddress = '', userAgent = '') {
          phone = EXCLUDED.phone,
          updated_at = CURRENT_TIMESTAMP`,
       [
-        newUser.id,
         newUser.name,
         newUser.student_id || null,
         newUser.email,
