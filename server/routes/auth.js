@@ -103,22 +103,22 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login (Student or Admin - accepts Email OR Student Roll ID)
+// Login (Student or Admin - accepts College Email ID)
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email/Student ID and password are required.' });
+      return res.status(400).json({ error: 'College email ID and password are required.' });
     }
 
     const identifier = String(email).trim().toLowerCase();
     const cleanPassword = String(password).trim();
 
-    // Query supports logging in via Email OR Student Roll ID (case-insensitive)
+    // Query supports logging in via College Email ID only (case-insensitive)
     const user = await get(
-      `SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(student_id) = ?`,
-      [identifier, identifier]
+      `SELECT * FROM users WHERE LOWER(email) = ?`,
+      [identifier]
     );
 
     if (!user) {

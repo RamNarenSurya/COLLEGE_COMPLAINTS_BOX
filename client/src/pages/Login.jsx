@@ -59,16 +59,16 @@ export default function Login() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">College Email or Student ID</label>
+            <label className="form-label">College Email ID</label>
             <input
-              type="text"
+              type="email"
               className="form-control"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
                 if (error) setError('');
               }}
-              placeholder="Enter your college email or student roll ID"
+              placeholder="Enter your college email ID"
               required
             />
           </div>
