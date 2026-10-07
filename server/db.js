@@ -161,7 +161,7 @@ async function initDB() {
     )
   `);
 
-  // Login Logs Table (Audit History)
+  // Login Logs Table (Login Audit History)
   await run(`
     CREATE TABLE IF NOT EXISTS login_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -171,8 +171,41 @@ async function initDB() {
       role TEXT NOT NULL,
       ip_address TEXT,
       user_agent TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Registration Logs Table (Registration Audit History)
+  await run(`
+    CREATE TABLE IF NOT EXISTS registration_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      user_name TEXT NOT NULL,
+      student_id TEXT,
+      email TEXT NOT NULL,
+      role TEXT NOT NULL,
+      department_name TEXT,
+      year INTEGER,
+      phone TEXT,
+      ip_address TEXT,
+      user_agent TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // User Profile Change History Table (Permanent Edit Audit)
+  await run(`
+    CREATE TABLE IF NOT EXISTS user_profile_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      old_name TEXT,
+      new_name TEXT,
+      old_email TEXT,
+      new_email TEXT,
+      old_phone TEXT,
+      new_phone TEXT,
+      change_summary TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 

@@ -12,11 +12,17 @@ import {
   Calendar,
   Eye,
   X,
-  Filter
+  Filter,
+  UserPlus,
+  History,
+  FileEdit
 } from 'lucide-react';
 
 export default function AdminLoginHistory() {
+  const [activeTab, setActiveTab] = useState('registration'); // 'registration', 'login', 'profile_history'
   const [logs, setLogs] = useState([]);
+  const [registrationLogs, setRegistrationLogs] = useState([]);
+  const [profileLogs, setProfileLogs] = useState([]);
   const [allUsersDirectory, setAllUsersDirectory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -37,8 +43,15 @@ export default function AdminLoginHistory() {
       const data = await api.getLoginHistory();
       setLogs(data.logs || []);
       setAllUsersDirectory(data.allUsersDirectory || []);
+
+      const regRes = await api.getRegistrationHistory().catch(() => ({ registrationLogs: [] }));
+      setRegistrationLogs(regRes.registrationLogs || []);
+
+      const profRes = await api.getProfileHistory().catch(() => ({ profileLogs: [] }));
+      setProfileLogs(profRes.profileLogs || []);
     } catch (err) {
-      setError('Failed to load login audit history.');
+      console.error('Fetch logs error:', err);
+      setError('Failed to load audit history.');
     } finally {
       setLoading(false);
     }
@@ -81,16 +94,40 @@ export default function AdminLoginHistory() {
     return matchesRole && matchesSearch;
   });
 
+  // Filtered Registration Logs
+  const filteredRegLogs = registrationLogs.filter((r) => {
+    const matchesRole = filterRole === 'all' || r.role === filterRole;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch = !q ||
+      (r.user_name && r.user_name.toLowerCase().includes(q)) ||
+      (r.email && r.email.toLowerCase().includes(q)) ||
+      (r.student_id && r.student_id.toLowerCase().includes(q)) ||
+      (r.department_name && r.department_name.toLowerCase().includes(q));
+
+    return matchesRole && matchesSearch;
+  });
+
+  // Filtered Profile History Logs
+  const filteredProfileLogs = profileLogs.filter((p) => {
+    const q = searchQuery.toLowerCase().trim();
+    return !q ||
+      (p.old_name && p.old_name.toLowerCase().includes(q)) ||
+      (p.new_name && p.new_name.toLowerCase().includes(q)) ||
+      (p.old_email && p.old_email.toLowerCase().includes(q)) ||
+      (p.new_email && p.new_email.toLowerCase().includes(q)) ||
+      (p.change_summary && p.change_summary.toLowerCase().includes(q));
+  });
+
   return (
     <div>
       {/* Header Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <ShieldCheck size={26} color="var(--primary-600)" /> Student & User Login Audit History
+            <ShieldCheck size={26} color="var(--primary-600)" /> Student & User Audit Logs
           </h1>
           <p style={{ color: 'var(--slate-500)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
-            Full access directory of all registered students and system admins with login frequency and timestamps
+            Permanent separate audit histories for Registration, Login Sessions, and Profile Updates
           </p>
         </div>
         <button className="btn btn-secondary" onClick={fetchLogs} disabled={loading}>
@@ -106,15 +143,41 @@ export default function AdminLoginHistory() {
 
       {/* KPI Stats Grid */}
       <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
-        <StatCard title="Registered Students" value={totalStudentsCount} icon={Users} color="var(--primary-600)" bg="var(--primary-50)" />
-        <StatCard title="System Administrators" value={totalAdminsCount} icon={Shield} color="#dc2626" bg="#fef2f2" />
+        <StatCard title="Registered Members" value={totalStudentsCount + totalAdminsCount} icon={Users} color="var(--primary-600)" bg="var(--primary-50)" />
+        <StatCard title="Registration History Logs" value={registrationLogs.length || allUsersDirectory.length} icon={UserPlus} color="#10b981" bg="#ecfdf5" />
         <StatCard title="Total Login Activity" value={totalLogsCount} icon={Calendar} color="#0284c7" bg="#e0f2fe" />
-        <StatCard title="Today's Active Logins" value={todayCount} icon={Clock} color="#d97706" bg="#fef3c7" />
+        <StatCard title="Permanent Profile Edits" value={profileLogs.length} icon={FileEdit} color="#8b5cf6" bg="#f3e8ff" />
+      </div>
+
+      {/* Main Tab Bar */}
+      <div className="card" style={{ padding: '0.5rem', marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <button
+          className={`btn ${activeTab === 'registration' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => setActiveTab('registration')}
+          style={{ flex: 1, minWidth: '220px' }}
+        >
+          <UserPlus size={16} /> 1. Registration History ({registrationLogs.length || allUsersDirectory.length})
+        </button>
+
+        <button
+          className={`btn ${activeTab === 'login' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => setActiveTab('login')}
+          style={{ flex: 1, minWidth: '220px' }}
+        >
+          <History size={16} /> 2. Login Audit History ({logs.length})
+        </button>
+
+        <button
+          className={`btn ${activeTab === 'profile_history' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => setActiveTab('profile_history')}
+          style={{ flex: 1, minWidth: '220px' }}
+        >
+          <FileEdit size={16} /> 3. Profile Edits History ({profileLogs.length})
+        </button>
       </div>
 
       {/* Role Filters & Search Toolbar */}
       <div className="card" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-        {/* Role Filter Tabs (Clearly Visible) */}
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--slate-600)', marginRight: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
             <Filter size={15} /> Filter Role:
@@ -125,7 +188,7 @@ export default function AdminLoginHistory() {
             style={{ padding: '0.4rem 0.9rem', fontSize: '0.85rem' }}
             onClick={() => setFilterRole('all')}
           >
-            All Roles ({allUsersDirectory.length})
+            All Roles
           </button>
 
           <button
@@ -145,13 +208,13 @@ export default function AdminLoginHistory() {
           </button>
         </div>
 
-        {/* Search Input Box */}
+        {/* Search Box */}
         <div style={{ position: 'relative', minWidth: '240px' }}>
           <Search size={16} color="var(--slate-400)" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)' }} />
           <input
             type="text"
             className="form-control"
-            placeholder="Search student, email, Roll ID..."
+            placeholder="Search name, email, Roll ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ paddingLeft: '2.25rem', height: '38px', fontSize: '0.85rem' }}
@@ -159,95 +222,235 @@ export default function AdminLoginHistory() {
         </div>
       </div>
 
-      {/* Directory Table View */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        {loading ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--slate-500)' }}>
-            Loading login directory...
-          </div>
-        ) : filteredDirectory.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--slate-500)' }}>
-            No accounts found matching your role filter or search.
-          </div>
-        ) : (
-          <div className="table-responsive">
-            <table className="table" style={{ margin: 0 }}>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>User Name & Roll ID</th>
-                  <th>Email & Contact</th>
-                  <th>Department & Year</th>
-                  <th>System Role</th>
-                  <th>Total Logins</th>
-                  <th>Last Active Login</th>
-                  <th>Audit Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredDirectory.map((u, index) => (
-                  <tr key={u.id}>
-                    <td style={{ color: 'var(--slate-400)', fontWeight: 600 }}>{index + 1}</td>
-                    <td>
-                      <div style={{ fontWeight: 700, color: 'var(--slate-800)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <User size={16} color={u.role === 'admin' ? '#dc2626' : 'var(--primary-600)'} />
-                        {u.name}
-                      </div>
-                      {u.student_id ? (
-                        <span style={{ fontSize: '0.78rem', color: 'var(--primary-700)', fontWeight: 700, fontFamily: 'monospace' }}>
-                          Roll ID: {u.student_id}
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}>System Administrator</span>
-                      )}
-                    </td>
-                    <td>
-                      <div style={{ fontSize: '0.88rem', color: 'var(--slate-700)', fontWeight: 600 }}>{u.email}</div>
-                      {u.phone && <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)' }}>📞 {u.phone}</div>}
-                    </td>
-                    <td>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{u.department_name || 'Academic Dept'}</div>
-                      {u.year && <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)' }}>Year {u.year}</div>}
-                    </td>
-                    <td>
-                      {/* Clearly Visible Role Badges */}
-                      <span className={`badge ${u.role === 'admin' ? 'badge-danger' : 'badge-status-submitted'}`} style={{ padding: '0.35rem 0.8rem', fontSize: '0.82rem' }}>
-                        {u.role === 'admin' ? '🛡️ ADMIN' : '🎓 STUDENT'}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`badge ${u.total_logins > 0 ? 'badge-status-assigned' : 'badge-status-closed'}`}>
-                        {u.total_logins} Login{u.total_logins !== 1 ? 's' : ''}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '0.82rem', color: 'var(--slate-700)', fontWeight: 600 }}>
-                      {u.last_login ? (
-                        <>
-                          <Clock size={13} style={{ verticalAlign: 'middle', marginRight: '4px', color: 'var(--primary-600)' }} />
-                          {new Date(u.last_login).toLocaleString(undefined, {
-                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
-                          })}
-                        </>
-                      ) : (
-                        <span style={{ color: 'var(--slate-400)' }}>No logins recorded</span>
-                      )}
-                    </td>
-                    <td>
-                      <button
-                        onClick={() => openStudentHistory(u)}
-                        className="btn btn-secondary btn-sm"
-                        title="Click to view complete login audit history"
-                      >
-                        <Eye size={14} /> Full History
-                      </button>
-                    </td>
+      {/* TAB 1: REGISTRATION HISTORY */}
+      {activeTab === 'registration' && (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          {loading ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--slate-500)' }}>
+              Loading registration history...
+            </div>
+          ) : (registrationLogs.length > 0 ? filteredRegLogs : filteredDirectory).length === 0 ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--slate-500)' }}>
+              No registration history logs match your filter criteria.
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table" style={{ margin: 0 }}>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>User Name & Roll ID</th>
+                    <th>Registered Email</th>
+                    <th>Department & Year</th>
+                    <th>Role</th>
+                    <th>Registration Timestamp</th>
+                    <th>IP / User Agent</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {(registrationLogs.length > 0 ? filteredRegLogs : filteredDirectory).map((reg, index) => (
+                    <tr key={reg.id || index}>
+                      <td style={{ color: 'var(--slate-400)', fontWeight: 600 }}>{index + 1}</td>
+                      <td>
+                        <div style={{ fontWeight: 700, color: 'var(--slate-800)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <User size={16} color={reg.role === 'admin' ? '#dc2626' : 'var(--primary-600)'} />
+                          {reg.user_name || reg.name}
+                        </div>
+                        {reg.student_id ? (
+                          <span style={{ fontSize: '0.78rem', color: 'var(--primary-700)', fontWeight: 700, fontFamily: 'monospace' }}>
+                            Roll ID: {reg.student_id}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}>System Administrator</span>
+                        )}
+                      </td>
+                      <td>
+                        <div style={{ fontSize: '0.88rem', color: 'var(--slate-700)', fontWeight: 600 }}>{reg.email}</div>
+                        {reg.phone && <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)' }}>📞 {reg.phone}</div>}
+                      </td>
+                      <td>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{reg.department_name || 'Academic Dept'}</div>
+                        {reg.year && <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)' }}>Year {reg.year}</div>}
+                      </td>
+                      <td>
+                        <span className={`badge ${reg.role === 'admin' ? 'badge-danger' : 'badge-status-submitted'}`} style={{ padding: '0.35rem 0.8rem', fontSize: '0.82rem' }}>
+                          {reg.role === 'admin' ? '🛡️ ADMIN' : '🎓 STUDENT'}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '0.85rem', color: 'var(--slate-800)', fontWeight: 700 }}>
+                        <Clock size={14} style={{ verticalAlign: 'middle', marginRight: '4px', color: '#10b981' }} />
+                        {new Date(reg.created_at || reg.registered_at).toLocaleString()}
+                      </td>
+                      <td>
+                        <div style={{ fontSize: '0.8rem', fontFamily: 'monospace', color: 'var(--slate-700)' }}>
+                          🌐 {reg.ip_address || '127.0.0.1'}
+                        </div>
+                        {reg.user_agent && (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {reg.user_agent}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 2: LOGIN AUDIT HISTORY */}
+      {activeTab === 'login' && (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          {loading ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--slate-500)' }}>
+              Loading login directory...
+            </div>
+          ) : filteredDirectory.length === 0 ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--slate-500)' }}>
+              No accounts found matching your role filter or search.
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table" style={{ margin: 0 }}>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>User Name & Roll ID</th>
+                    <th>Email & Contact</th>
+                    <th>Department & Year</th>
+                    <th>System Role</th>
+                    <th>Total Logins</th>
+                    <th>Last Active Login</th>
+                    <th>Audit Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDirectory.map((u, index) => (
+                    <tr key={u.id}>
+                      <td style={{ color: 'var(--slate-400)', fontWeight: 600 }}>{index + 1}</td>
+                      <td>
+                        <div style={{ fontWeight: 700, color: 'var(--slate-800)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <User size={16} color={u.role === 'admin' ? '#dc2626' : 'var(--primary-600)'} />
+                          {u.name}
+                        </div>
+                        {u.student_id ? (
+                          <span style={{ fontSize: '0.78rem', color: 'var(--primary-700)', fontWeight: 700, fontFamily: 'monospace' }}>
+                            Roll ID: {u.student_id}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}>System Administrator</span>
+                        )}
+                      </td>
+                      <td>
+                        <div style={{ fontSize: '0.88rem', color: 'var(--slate-700)', fontWeight: 600 }}>{u.email}</div>
+                        {u.phone && <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)' }}>📞 {u.phone}</div>}
+                      </td>
+                      <td>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{u.department_name || 'Academic Dept'}</div>
+                        {u.year && <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)' }}>Year {u.year}</div>}
+                      </td>
+                      <td>
+                        <span className={`badge ${u.role === 'admin' ? 'badge-danger' : 'badge-status-submitted'}`} style={{ padding: '0.35rem 0.8rem', fontSize: '0.82rem' }}>
+                          {u.role === 'admin' ? '🛡️ ADMIN' : '🎓 STUDENT'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`badge ${u.total_logins > 0 ? 'badge-status-assigned' : 'badge-status-closed'}`}>
+                          {u.total_logins} Login{u.total_logins !== 1 ? 's' : ''}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '0.82rem', color: 'var(--slate-700)', fontWeight: 600 }}>
+                        {u.last_login ? (
+                          <>
+                            <Clock size={13} style={{ verticalAlign: 'middle', marginRight: '4px', color: 'var(--primary-600)' }} />
+                            {new Date(u.last_login).toLocaleString(undefined, {
+                              month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
+                            })}
+                          </>
+                        ) : (
+                          <span style={{ color: 'var(--slate-400)' }}>No logins recorded</span>
+                        )}
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => openStudentHistory(u)}
+                          className="btn btn-secondary btn-sm"
+                          title="Click to view complete login audit history"
+                        >
+                          <Eye size={14} /> Full Logins
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: PERMANENT PROFILE EDIT HISTORY */}
+      {activeTab === 'profile_history' && (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          {filteredProfileLogs.length === 0 ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--slate-500)' }}>
+              No profile update logs recorded yet. Previous account histories remain preserved.
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table" style={{ margin: 0 }}>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>User ID</th>
+                    <th>Original Details</th>
+                    <th>Updated Details</th>
+                    <th>Changes Summary</th>
+                    <th>Timestamp</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProfileLogs.map((p, idx) => (
+                    <tr key={p.id || idx}>
+                      <td style={{ color: 'var(--slate-400)', fontWeight: 600 }}>{idx + 1}</td>
+                      <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>User #{p.user_id}</td>
+                      <td>
+                        <div style={{ fontWeight: 700 }}>{p.old_name}</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)' }}>{p.old_email}</div>
+                        {p.old_phone && <div style={{ fontSize: '0.75rem', color: 'var(--slate-400)' }}>📞 {p.old_phone}</div>}
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 700, color: 'var(--primary-700)' }}>{p.new_name}</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--primary-600)' }}>{p.new_email}</div>
+                        {p.new_phone && <div style={{ fontSize: '0.75rem', color: 'var(--slate-500)' }}>📞 {p.new_phone}</div>}
+                      </td>
+                      <td>
+                        <span style={{
+                          background: 'var(--primary-50)',
+                          color: 'var(--primary-700)',
+                          border: '1px solid var(--primary-100)',
+                          padding: '0.2rem 0.6rem',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.8rem',
+                          fontWeight: 600
+                        }}>
+                          ✏️ {p.change_summary}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '0.85rem', color: 'var(--slate-700)', fontWeight: 600 }}>
+                        <Clock size={14} style={{ verticalAlign: 'middle', marginRight: '4px', color: '#8b5cf6' }} />
+                        {new Date(p.created_at).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* STUDENT FULL HISTORY MODAL */}
       {selectedStudent && (

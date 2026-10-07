@@ -455,6 +455,28 @@ router.get('/student-login-history/:userId', async (req, res) => {
   }
 });
 
+// Get Separate Registration Audit History
+router.get('/registration-history', async (req, res) => {
+  try {
+    const regLogs = await all(`SELECT * FROM registration_logs ORDER BY created_at DESC`);
+    res.json({ registrationLogs: regLogs });
+  } catch (err) {
+    console.error('Fetch registration history error:', err);
+    res.status(500).json({ error: 'Failed to fetch registration history.' });
+  }
+});
+
+// Get Permanent Profile Change Audit History
+router.get('/profile-history', async (req, res) => {
+  try {
+    const profileLogs = await all(`SELECT * FROM user_profile_history ORDER BY created_at DESC`);
+    res.json({ profileLogs });
+  } catch (err) {
+    console.error('Fetch profile history error:', err);
+    res.status(500).json({ error: 'Failed to fetch profile history.' });
+  }
+});
+
 // 11. Cloud DB Status, Test & Sync (Neon.tech & Supabase Cloud Integration)
 router.get('/cloud-db/status', async (req, res) => {
   try {
@@ -628,7 +650,46 @@ router.post('/cloud-db/sync', async (req, res) => {
           );
         }
 
-        // 2. Login Audit Logs Table (`login_logs`)
+        // 2. Registration Audit Logs Table (`registration_logs`)
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS registration_logs (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL,
+            user_name VARCHAR(255) NOT NULL,
+            student_id VARCHAR(100),
+            email VARCHAR(255) NOT NULL,
+            role VARCHAR(50) NOT NULL,
+            department_name VARCHAR(255),
+            year INT,
+            phone VARCHAR(50),
+            ip_address VARCHAR(100),
+            user_agent TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+
+        const regLogs = await all(`SELECT user_id, user_name, student_id, email, role, department_name, year, phone, ip_address, user_agent, created_at FROM registration_logs ORDER BY id ASC`);
+        for (const r of regLogs) {
+          await client.query(
+            `INSERT INTO registration_logs (user_id, user_name, student_id, email, role, department_name, year, phone, ip_address, user_agent, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [
+              r.user_id,
+              r.user_name || '',
+              r.student_id || null,
+              r.email || '',
+              r.role || 'student',
+              r.department_name || null,
+              r.year || null,
+              r.phone || null,
+              r.ip_address || '',
+              r.user_agent || '',
+              r.created_at
+            ]
+          );
+        }
+
+        // 3. Login Audit Logs Table (`login_logs`)
         await client.query(`
           CREATE TABLE IF NOT EXISTS login_logs (
             id SERIAL PRIMARY KEY,
@@ -658,12 +719,49 @@ router.post('/cloud-db/sync', async (req, res) => {
           );
         }
 
+        // 4. User Profile Edit History Table (`user_profile_history`)
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS user_profile_history (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL,
+            old_name VARCHAR(255),
+            new_name VARCHAR(255),
+            old_email VARCHAR(255),
+            new_email VARCHAR(255),
+            old_phone VARCHAR(50),
+            new_phone VARCHAR(50),
+            change_summary TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+
+        const profileLogs = await all(`SELECT user_id, old_name, new_name, old_email, new_email, old_phone, new_phone, change_summary, created_at FROM user_profile_history ORDER BY id ASC`);
+        for (const p of profileLogs) {
+          await client.query(
+            `INSERT INTO user_profile_history (user_id, old_name, new_name, old_email, new_email, old_phone, new_phone, change_summary, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [
+              p.user_id,
+              p.old_name || null,
+              p.new_name || null,
+              p.old_email || null,
+              p.new_email || null,
+              p.old_phone || null,
+              p.new_phone || null,
+              p.change_summary || '',
+              p.created_at
+            ]
+          );
+        }
+
         const userCountRes = await client.query('SELECT COUNT(*) FROM users;');
+        const regCountRes = await client.query('SELECT COUNT(*) FROM registration_logs;');
         const countRes = await client.query('SELECT COUNT(*) FROM login_logs;');
+        const profileCountRes = await client.query('SELECT COUNT(*) FROM user_profile_history;');
         await client.end();
 
         return res.json({
-          message: `Successfully synced ${allUsers.length} registered members and ${logs.length} login log records directly to Neon.tech PostgreSQL Cloud Database! (Total in Neon DB: ${userCountRes.rows[0].count} users, ${countRes.rows[0].count} logs)`,
+          message: `Successfully synced all 4 history tables to Neon.tech PostgreSQL Cloud DB! (Neon DB Totals: ${userCountRes.rows[0].count} users, ${regCountRes.rows[0].count} registrations, ${countRes.rows[0].count} logins, ${profileCountRes.rows[0].count} profile changes)`,
           count: logs.length
         });
       } else if (connUrl.startsWith('https://')) {

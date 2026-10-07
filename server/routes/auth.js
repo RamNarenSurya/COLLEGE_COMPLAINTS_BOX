@@ -64,9 +64,17 @@ router.post('/register', async (req, res) => {
       [result.lastID]
     );
 
-    // Record initial Audit Log Entry for new student registration
+    // Record Permanent Audit Log for new student registration in registration_logs
     const ip_address = getClientIp(req);
     const user_agent = req.headers['user-agent'] || 'Unknown';
+
+    await run(
+      `INSERT INTO registration_logs (user_id, user_name, student_id, email, role, department_name, year, phone, ip_address, user_agent)
+       VALUES (?, ?, ?, ?, 'student', ?, ?, ?, ?, ?)`,
+      [newUser.id, newUser.name, newUser.student_id, newUser.email, newUser.department_name || null, newUser.year || null, newUser.phone || null, ip_address, user_agent]
+    );
+
+    // Also record initial login audit entry
     await run(
       `INSERT INTO login_logs (user_id, user_name, email, role, ip_address, user_agent) VALUES (?, ?, ?, 'student', ?, ?)`,
       [newUser.id, newUser.name, newUser.email, ip_address, user_agent]
@@ -249,6 +257,21 @@ router.put('/profile', authenticateToken, async (req, res) => {
       `UPDATE users SET name = ?, email = ?, phone = ?, department_id = ?, year = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       [updatedName, updatedEmail, updatedPhone, updatedDept, updatedYear, password_hash, userId]
     );
+
+    // Record permanent profile change history
+    const changes = [];
+    if (user.name !== updatedName) changes.push(`Name: '${user.name}' -> '${updatedName}'`);
+    if (user.email !== updatedEmail) changes.push(`Email: '${user.email}' -> '${updatedEmail}'`);
+    if (user.phone !== updatedPhone) changes.push(`Phone: '${user.phone || ''}' -> '${updatedPhone || ''}'`);
+    if (password && typeof password === 'string' && password.trim().length > 0) changes.push('Password updated');
+
+    if (changes.length > 0) {
+      await run(
+        `INSERT INTO user_profile_history (user_id, old_name, new_name, old_email, new_email, old_phone, new_phone, change_summary)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [userId, user.name, updatedName, user.email, updatedEmail, user.phone || null, updatedPhone || null, changes.join(', ')]
+      );
+    }
 
     const updatedUser = await get(
       `SELECT u.id, u.name, u.student_id, u.email, u.role, u.department_id, d.name as department_name, u.year, u.phone 
