@@ -22,6 +22,7 @@ async function initNeonTables(client) {
       name VARCHAR(255) NOT NULL,
       student_id VARCHAR(100),
       email VARCHAR(255) UNIQUE NOT NULL,
+      password_hash TEXT,
       role VARCHAR(50) NOT NULL,
       department_id INT,
       year INT,
@@ -30,6 +31,9 @@ async function initNeonTables(client) {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // Ensure password_hash column exists in legacy tables
+  await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;`).catch(() => {});
 
   // 2. registration_logs table
   await client.query(`
@@ -99,12 +103,13 @@ async function saveRegistrationToNeon(newUser, ipAddress = '', userAgent = '') {
 
     // Insert or update user record in Neon using ON CONFLICT (email)
     await client.query(
-      `INSERT INTO users (id, name, student_id, email, role, department_id, year, phone)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO users (id, name, student_id, email, password_hash, role, department_id, year, phone)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        ON CONFLICT (email) DO UPDATE SET
          id = EXCLUDED.id,
          name = EXCLUDED.name,
          student_id = EXCLUDED.student_id,
+         password_hash = COALESCE(EXCLUDED.password_hash, users.password_hash),
          role = EXCLUDED.role,
          department_id = EXCLUDED.department_id,
          year = EXCLUDED.year,
@@ -115,6 +120,7 @@ async function saveRegistrationToNeon(newUser, ipAddress = '', userAgent = '') {
         newUser.name,
         newUser.student_id || null,
         newUser.email,
+        newUser.password_hash || null,
         newUser.role || 'student',
         newUser.department_id || null,
         newUser.year || null,
@@ -183,9 +189,37 @@ async function saveLoginToNeon(user, ipAddress = '', userAgent = '') {
   }
 }
 
+/**
+ * Fetch a single user by email directly from Neon DB (for auth fallback when SQLite database is reset/empty)
+ */
+async function getUserFromNeonByEmail(email) {
+  const url = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
+  if (!url) return null;
+
+  const client = getNeonClient();
+  if (!client) return null;
+
+  try {
+    await client.connect();
+    await initNeonTables(client);
+    const res = await client.query(
+      `SELECT id, name, student_id, email, password_hash, role, department_id, year, phone, created_at, updated_at
+       FROM users WHERE LOWER(email) = LOWER($1)`,
+      [String(email).trim()]
+    );
+    return res.rows[0] || null;
+  } catch (err) {
+    console.error('⚠️ [Neon Cloud DB] Failed to fetch user by email:', err.message);
+    return null;
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
 module.exports = {
   getNeonClient,
   initNeonTables,
   saveRegistrationToNeon,
-  saveLoginToNeon
+  saveLoginToNeon,
+  getUserFromNeonByEmail
 };

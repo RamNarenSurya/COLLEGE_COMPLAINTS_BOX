@@ -60,7 +60,7 @@ router.post('/register', async (req, res) => {
     );
 
     const newUser = await get(
-      `SELECT u.id, u.name, u.student_id, u.email, u.role, u.department_id, d.name as department_name, u.year, u.phone 
+      `SELECT u.id, u.name, u.student_id, u.email, u.password_hash, u.role, u.department_id, d.name as department_name, u.year, u.phone 
        FROM users u LEFT JOIN departments d ON u.department_id = d.id WHERE u.id = ?`,
       [result.lastID]
     );
@@ -116,10 +116,41 @@ router.post('/login', async (req, res) => {
     const cleanPassword = String(password).trim();
 
     // Query supports logging in via College Email ID only (case-insensitive)
-    const user = await get(
+    let user = await get(
       `SELECT * FROM users WHERE LOWER(email) = ?`,
       [identifier]
     );
+
+    // Fallback: If local SQLite database was reset or missing user, check Neon Cloud DB
+    if (!user) {
+      const { getUserFromNeonByEmail } = require('../neon-helper');
+      const neonUser = await getUserFromNeonByEmail(identifier);
+      if (neonUser && neonUser.password_hash) {
+        const isMatch = await bcrypt.compare(cleanPassword, neonUser.password_hash);
+        if (isMatch) {
+          // Restore user into local SQLite database so local cache is updated
+          try {
+            const insertRes = await run(
+              `INSERT INTO users (name, student_id, email, password_hash, role, department_id, year, phone)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                neonUser.name,
+                neonUser.student_id || null,
+                neonUser.email,
+                neonUser.password_hash,
+                neonUser.role || 'student',
+                neonUser.department_id || null,
+                neonUser.year || null,
+                neonUser.phone || null
+              ]
+            );
+            user = await get(`SELECT * FROM users WHERE id = ?`, [insertRes.lastID]);
+          } catch (insertErr) {
+            user = neonUser;
+          }
+        }
+      }
+    }
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials.' });

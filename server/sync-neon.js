@@ -5,7 +5,8 @@ const { all, initDB } = require('./db');
 
 async function syncToNeon() {
   await initDB();
-  const users = await all('SELECT id, name, student_id, email, role, department_id, year, phone, created_at, updated_at FROM users ORDER BY id ASC');
+  const { run, get } = require('./db');
+  const users = await all('SELECT id, name, student_id, email, password_hash, role, department_id, year, phone, created_at, updated_at FROM users ORDER BY id ASC');
   const regLogs = await all('SELECT user_id, user_name, student_id, email, role, department_name, year, phone, ip_address, user_agent, created_at FROM registration_logs ORDER BY id ASC');
   const loginLogs = await all('SELECT user_id, user_name, email, role, ip_address, user_agent, created_at FROM login_logs ORDER BY id ASC');
   const profileLogs = await all('SELECT user_id, old_name, new_name, old_email, new_email, old_phone, new_phone, change_summary, created_at FROM user_profile_history ORDER BY id ASC');
@@ -34,6 +35,7 @@ async function syncToNeon() {
       name VARCHAR(255) NOT NULL,
       student_id VARCHAR(100),
       email VARCHAR(255) UNIQUE NOT NULL,
+      password_hash TEXT,
       role VARCHAR(50) NOT NULL,
       department_id INT,
       year INT,
@@ -43,14 +45,17 @@ async function syncToNeon() {
     );
   `);
 
+  await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;`).catch(() => {});
+
   for (const u of users) {
     await client.query(
-      `INSERT INTO users (id, name, student_id, email, role, department_id, year, phone, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO users (id, name, student_id, email, password_hash, role, department_id, year, phone, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (email) DO UPDATE SET
          id = EXCLUDED.id,
          name = EXCLUDED.name,
          student_id = EXCLUDED.student_id,
+         password_hash = COALESCE(EXCLUDED.password_hash, users.password_hash),
          role = EXCLUDED.role,
          department_id = EXCLUDED.department_id,
          year = EXCLUDED.year,
@@ -61,6 +66,7 @@ async function syncToNeon() {
         u.name,
         u.student_id || null,
         u.email,
+        u.password_hash || null,
         u.role,
         u.department_id || null,
         u.year || null,
@@ -69,6 +75,33 @@ async function syncToNeon() {
         u.updated_at
       ]
     );
+  }
+
+  // Restore any users from Neon DB into local SQLite if missing
+  try {
+    const cloudUsersRes = await client.query(`SELECT * FROM users;`);
+    for (const cu of cloudUsersRes.rows) {
+      if (!cu.email) continue;
+      const localUser = await get(`SELECT id FROM users WHERE LOWER(email) = LOWER(?)`, [cu.email]);
+      if (!localUser && cu.password_hash) {
+        await run(
+          `INSERT INTO users (name, student_id, email, password_hash, role, department_id, year, phone)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            cu.name,
+            cu.student_id || null,
+            cu.email,
+            cu.password_hash,
+            cu.role || 'student',
+            cu.department_id || null,
+            cu.year || null,
+            cu.phone || null
+          ]
+        ).catch(() => {});
+      }
+    }
+  } catch (e) {
+    console.warn('Notice: Could not restore cloud users to local cache:', e.message);
   }
 
   // 2. Registration Audit Logs Table (`registration_logs`)

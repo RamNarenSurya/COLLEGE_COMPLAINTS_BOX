@@ -612,6 +612,7 @@ router.post('/cloud-db/sync', async (req, res) => {
             name VARCHAR(255) NOT NULL,
             student_id VARCHAR(100),
             email VARCHAR(255) UNIQUE NOT NULL,
+            password_hash TEXT,
             role VARCHAR(50) NOT NULL,
             department_id INT,
             year INT,
@@ -621,15 +622,18 @@ router.post('/cloud-db/sync', async (req, res) => {
           );
         `);
 
-        const allUsers = await all(`SELECT id, name, student_id, email, role, department_id, year, phone, created_at, updated_at FROM users ORDER BY id ASC`);
+        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;`).catch(() => {});
+
+        const allUsers = await all(`SELECT id, name, student_id, email, password_hash, role, department_id, year, phone, created_at, updated_at FROM users ORDER BY id ASC`);
         for (const u of allUsers) {
           await client.query(
-            `INSERT INTO users (id, name, student_id, email, role, department_id, year, phone, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-             ON CONFLICT (id) DO UPDATE SET
+            `INSERT INTO users (id, name, student_id, email, password_hash, role, department_id, year, phone, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+             ON CONFLICT (email) DO UPDATE SET
+               id = EXCLUDED.id,
                name = EXCLUDED.name,
                student_id = EXCLUDED.student_id,
-               email = EXCLUDED.email,
+               password_hash = COALESCE(EXCLUDED.password_hash, users.password_hash),
                role = EXCLUDED.role,
                department_id = EXCLUDED.department_id,
                year = EXCLUDED.year,
@@ -640,6 +644,7 @@ router.post('/cloud-db/sync', async (req, res) => {
               u.name,
               u.student_id || null,
               u.email,
+              u.password_hash || null,
               u.role,
               u.department_id || null,
               u.year || null,
