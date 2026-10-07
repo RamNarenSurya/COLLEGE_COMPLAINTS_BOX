@@ -1,4 +1,5 @@
-require('dotenv').config({ path: './.env' });
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const { Client } = require('pg');
 
 function getNeonClient() {
@@ -84,7 +85,10 @@ async function initNeonTables(client) {
  */
 async function saveRegistrationToNeon(newUser, ipAddress = '', userAgent = '') {
   const url = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
-  if (!url) return;
+  if (!url) {
+    console.warn('⚠️ [Neon Cloud DB] NEON_DATABASE_URL is not set. Skipping real-time cloud save.');
+    return;
+  }
 
   const client = getNeonClient();
   if (!client) return;
@@ -93,14 +97,14 @@ async function saveRegistrationToNeon(newUser, ipAddress = '', userAgent = '') {
     await client.connect();
     await initNeonTables(client);
 
-    // Insert or update user record
+    // Insert or update user record in Neon using ON CONFLICT (email)
     await client.query(
       `INSERT INTO users (id, name, student_id, email, role, department_id, year, phone)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       ON CONFLICT (id) DO UPDATE SET
+       ON CONFLICT (email) DO UPDATE SET
+         id = EXCLUDED.id,
          name = EXCLUDED.name,
          student_id = EXCLUDED.student_id,
-         email = EXCLUDED.email,
          role = EXCLUDED.role,
          department_id = EXCLUDED.department_id,
          year = EXCLUDED.year,

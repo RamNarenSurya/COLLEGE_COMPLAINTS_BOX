@@ -1,4 +1,5 @@
-require('dotenv').config({ path: './.env' });
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const { Client } = require('pg');
 const { all, initDB } = require('./db');
 
@@ -12,6 +13,11 @@ async function syncToNeon() {
   const complaintUpdates = await all('SELECT * FROM complaint_updates ORDER BY id ASC');
 
   console.log(`Local SQLite totals: ${users.length} users, ${regLogs.length} registration logs, ${loginLogs.length} login logs, ${profileLogs.length} profile change logs, ${complaints.length} complaints, ${complaintUpdates.length} issue updates/comments.`);
+
+  if (!process.env.NEON_DATABASE_URL) {
+    console.error('❌ Cannot sync: NEON_DATABASE_URL is missing in .env');
+    return;
+  }
 
   const client = new Client({
     connectionString: process.env.NEON_DATABASE_URL,
@@ -41,10 +47,10 @@ async function syncToNeon() {
     await client.query(
       `INSERT INTO users (id, name, student_id, email, role, department_id, year, phone, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       ON CONFLICT (id) DO UPDATE SET
+       ON CONFLICT (email) DO UPDATE SET
+         id = EXCLUDED.id,
          name = EXCLUDED.name,
          student_id = EXCLUDED.student_id,
-         email = EXCLUDED.email,
          role = EXCLUDED.role,
          department_id = EXCLUDED.department_id,
          year = EXCLUDED.year,

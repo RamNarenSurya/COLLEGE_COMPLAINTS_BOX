@@ -1,7 +1,7 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const { initDB } = require('./db');
 
 const authRoutes = require('./routes/auth');
@@ -57,6 +57,24 @@ app.use((err, req, res, next) => {
 function startServer(retries = 5) {
   initDB()
     .then(() => {
+      // Trigger background sync to Neon PostgreSQL Cloud DB if configured
+      if (process.env.NEON_DATABASE_URL) {
+        try {
+          const { saveRegistrationToNeon } = require('./neon-helper');
+          // Run sync script non-blockingly
+          const { exec } = require('child_process');
+          exec('node sync-neon.js', { cwd: __dirname }, (err, stdout, stderr) => {
+            if (err) {
+              console.warn('⚡ [Neon Cloud DB] Initial startup background sync notice:', err.message);
+            } else {
+              console.log('⚡ [Neon Cloud DB] Startup cloud sync completed.');
+            }
+          });
+        } catch (e) {
+          console.error('Neon sync helper error:', e.message);
+        }
+      }
+
       const server = app.listen(PORT, () => {
         console.log(`===================================================`);
         console.log(`🚀 College Complaint API Server running on port ${PORT}`);
