@@ -317,4 +317,8 @@ async function syncToNeon() {
   await client.end();
 }
 
-syncToNeon().catch(err => console.error('Sync failed:', err));
+module.exports = { syncToNeon };
+
+if (require.main === module) {
+  syncToNeon().catch(err => console.error('Sync failed:', err));
+}

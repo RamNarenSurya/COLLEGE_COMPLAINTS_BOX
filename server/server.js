@@ -60,16 +60,10 @@ function startServer(retries = 5) {
       // Trigger background sync to Neon PostgreSQL Cloud DB if configured
       if (process.env.NEON_DATABASE_URL) {
         try {
-          const { saveRegistrationToNeon } = require('./neon-helper');
-          // Run sync script non-blockingly
-          const { exec } = require('child_process');
-          exec('node sync-neon.js', { cwd: __dirname }, (err, stdout, stderr) => {
-            if (err) {
-              console.warn('⚡ [Neon Cloud DB] Initial startup background sync notice:', err.message);
-            } else {
-              console.log('⚡ [Neon Cloud DB] Startup cloud sync completed.');
-            }
-          });
+          const { syncToNeon } = require('./sync-neon');
+          syncToNeon()
+            .then(() => console.log('⚡ [Neon Cloud DB] Startup bi-directional cloud sync completed.'))
+            .catch((err) => console.warn('⚡ [Neon Cloud DB] Startup cloud sync notice:', err.message));
         } catch (e) {
           console.error('Neon sync helper error:', e.message);
         }

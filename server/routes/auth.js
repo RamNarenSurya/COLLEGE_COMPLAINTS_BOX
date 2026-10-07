@@ -81,10 +81,12 @@ router.post('/register', async (req, res) => {
       [newUser.id, newUser.name, newUser.email, ip_address, user_agent]
     );
 
-    // Asynchronously save to Neon Cloud Database (NEON_DATABASE_URL) in real-time
-    saveRegistrationToNeon(newUser, ip_address, user_agent).catch(err => {
-      console.error('Non-blocking Neon DB registration log failed:', err.message);
-    });
+    // Save to Neon Cloud Database (NEON_DATABASE_URL) in real-time
+    try {
+      await saveRegistrationToNeon(newUser, ip_address, user_agent);
+    } catch (neonErr) {
+      console.error('⚠️ [Neon Cloud DB] Real-time registration save warning:', neonErr.message);
+    }
 
     const token = jwt.sign(
       { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role },
