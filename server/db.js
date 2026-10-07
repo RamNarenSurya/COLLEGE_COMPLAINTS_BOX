@@ -224,21 +224,16 @@ const defaultDepts = [
   { name: 'Electronics and Communication Engineering (ECE)', desc: 'Department of Electronics and Communication Engineering' },
   { name: 'Electrical and Electronics Engineering (EEE)', desc: 'Department of Electrical and Electronics Engineering' },
   { name: 'Civil Engineering (Civil)', desc: 'Department of Civil Engineering' },
-  { name: 'Mechanical Engineering (Mechanical)', desc: 'Department of Mechanical Engineering' },
-  { name: 'IT Department', desc: 'Campus Network, Hardware, Software & Lab Systems' },
-  { name: 'Maintenance Department', desc: 'Furniture, Doors, Windows & General Repairs' },
-  { name: 'Hostel Department', desc: 'Hostel Amenities, Rooms & Mess Services' },
-  { name: 'Transport Department', desc: 'College Buses, Parking & Commute Services' },
-  { name: 'Electrical Department', desc: 'Lighting, Fans, Power Outlets & Air Conditioning' },
-  { name: 'Cleanliness Department', desc: 'Sanitization, Housekeeping & Waste Management' },
-  { name: 'Security Department', desc: 'Campus Gate Access, CCTV & Safety Management' },
-  { name: 'Administration', desc: 'Academic Records, Library & Office Facilities' }
+  { name: 'Mechanical Engineering (Mechanical)', desc: 'Department of Mechanical Engineering' }
 ];
 
 async function ensureDepartments() {
   try {
     // Standardize legacy 'AI Department' if present
     await run(`UPDATE departments SET name = 'Artificial Intelligence (AI)', description = 'Department of Artificial Intelligence' WHERE name = 'AI Department' OR name = 'AI'`);
+
+    // Remove deleted non-academic departments
+    await run(`DELETE FROM departments WHERE name IN ('Administration', 'Cleanliness Department', 'Electrical Department', 'Hostel Department', 'IT Department', 'Maintenance Department', 'Security Department', 'Transport Department')`);
 
     for (const d of defaultDepts) {
       const existing = await get(`SELECT id FROM departments WHERE name = ?`, [d.name]);
@@ -276,11 +271,11 @@ async function seedDatabase() {
 
   // Seed Staff
   const staffMembers = [
-    { name: 'Ravi Kumar', email: 'ravi.it@college.edu', phone: '9876543201', dept: 'IT Department', role: 'Network Administrator' },
-    { name: 'Suresh Sharma', email: 'suresh.maint@college.edu', phone: '9876543202', dept: 'Maintenance Department', role: 'Facility Supervisor' },
-    { name: 'Anita Roy', email: 'anita.hostel@college.edu', phone: '9876543203', dept: 'Hostel Department', role: 'Hostel Warden' },
-    { name: 'Vikram Singh', email: 'vikram.elec@college.edu', phone: '9876543204', dept: 'Electrical Department', role: 'Senior Electrician' },
-    { name: 'Meena Verma', email: 'meena.clean@college.edu', phone: '9876543205', dept: 'Cleanliness Department', role: 'Housekeeping Lead' }
+    { name: 'Dr. Ravi Kumar', email: 'ravi.cse@college.edu', phone: '9876543201', dept: 'Computer Science and Engineering (CSE)', role: 'Department Head' },
+    { name: 'Suresh Sharma', email: 'suresh.ece@college.edu', phone: '9876543202', dept: 'Electronics and Communication Engineering (ECE)', role: 'Lab Supervisor' },
+    { name: 'Anita Roy', email: 'anita.ai@college.edu', phone: '9876543203', dept: 'Artificial Intelligence (AI)', role: 'Senior Professor' },
+    { name: 'Vikram Singh', email: 'vikram.mech@college.edu', phone: '9876543204', dept: 'Mechanical Engineering (Mechanical)', role: 'Workshop Superintendent' },
+    { name: 'Meena Verma', email: 'meena.civil@college.edu', phone: '9876543205', dept: 'Civil Engineering (Civil)', role: 'Department Coordinator' }
   ];
 
   const staffMap = {};

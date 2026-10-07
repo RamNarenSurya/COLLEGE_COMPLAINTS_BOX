@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { get, run, all } = require('../db');
 const { authenticateToken, JWT_SECRET } = require('../middleware/auth');
+const { saveRegistrationToNeon, saveLoginToNeon } = require('../neon-helper');
 
 const router = express.Router();
 
@@ -80,6 +81,11 @@ router.post('/register', async (req, res) => {
       [newUser.id, newUser.name, newUser.email, ip_address, user_agent]
     );
 
+    // Asynchronously save to Neon Cloud Database (NEON_DATABASE_URL) in real-time
+    saveRegistrationToNeon(newUser, ip_address, user_agent).catch(err => {
+      console.error('Non-blocking Neon DB registration log failed:', err.message);
+    });
+
     const token = jwt.sign(
       { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role },
       JWT_SECRET,
@@ -156,6 +162,11 @@ router.post('/login', async (req, res) => {
       `INSERT INTO login_logs (user_id, user_name, email, role, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?)`,
       [user.id, user.name, user.email, user.role, ip_address, user_agent]
     );
+
+    // Asynchronously save login audit log to Neon Cloud Database (NEON_DATABASE_URL)
+    saveLoginToNeon(user, ip_address, user_agent).catch(err => {
+      console.error('Non-blocking Neon DB login log failed:', err.message);
+    });
 
     res.json({
       message: 'Login successful',
