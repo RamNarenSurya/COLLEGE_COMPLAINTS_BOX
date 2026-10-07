@@ -256,8 +256,15 @@ router.put('/profile', authenticateToken, async (req, res) => {
       [userId]
     );
 
+    const token = jwt.sign(
+      { id: updatedUser.id, name: updatedUser.name, email: updatedUser.email, role: updatedUser.role },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
     res.json({
       message: 'Profile updated successfully',
+      token,
       user: updatedUser
     });
   } catch (err) {

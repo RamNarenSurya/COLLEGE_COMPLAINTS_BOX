@@ -583,6 +583,52 @@ router.post('/cloud-db/sync', async (req, res) => {
         const client = new Client({ connectionString: connUrl, ssl: { rejectUnauthorized: false } });
         await client.connect();
 
+        // 1. Registered Members Table (`users`)
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS users (
+            id INT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            student_id VARCHAR(100),
+            email VARCHAR(255) UNIQUE NOT NULL,
+            role VARCHAR(50) NOT NULL,
+            department_id INT,
+            year INT,
+            phone VARCHAR(50),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+
+        const allUsers = await all(`SELECT id, name, student_id, email, role, department_id, year, phone, created_at, updated_at FROM users ORDER BY id ASC`);
+        for (const u of allUsers) {
+          await client.query(
+            `INSERT INTO users (id, name, student_id, email, role, department_id, year, phone, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+             ON CONFLICT (id) DO UPDATE SET
+               name = EXCLUDED.name,
+               student_id = EXCLUDED.student_id,
+               email = EXCLUDED.email,
+               role = EXCLUDED.role,
+               department_id = EXCLUDED.department_id,
+               year = EXCLUDED.year,
+               phone = EXCLUDED.phone,
+               updated_at = EXCLUDED.updated_at`,
+            [
+              u.id,
+              u.name,
+              u.student_id || null,
+              u.email,
+              u.role,
+              u.department_id || null,
+              u.year || null,
+              u.phone || null,
+              u.created_at,
+              u.updated_at
+            ]
+          );
+        }
+
+        // 2. Login Audit Logs Table (`login_logs`)
         await client.query(`
           CREATE TABLE IF NOT EXISTS login_logs (
             id SERIAL PRIMARY KEY,
@@ -612,11 +658,12 @@ router.post('/cloud-db/sync', async (req, res) => {
           );
         }
 
+        const userCountRes = await client.query('SELECT COUNT(*) FROM users;');
         const countRes = await client.query('SELECT COUNT(*) FROM login_logs;');
         await client.end();
 
         return res.json({
-          message: `Successfully synced ${logs.length} login log records directly to Neon.tech PostgreSQL Cloud Database! (Total in Neon DB: ${countRes.rows[0].count})`,
+          message: `Successfully synced ${allUsers.length} registered members and ${logs.length} login log records directly to Neon.tech PostgreSQL Cloud Database! (Total in Neon DB: ${userCountRes.rows[0].count} users, ${countRes.rows[0].count} logs)`,
           count: logs.length
         });
       } else if (connUrl.startsWith('https://')) {

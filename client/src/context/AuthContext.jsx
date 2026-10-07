@@ -25,7 +25,18 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
       }
     }
+
+    const handleUnauthorized = () => {
+      setAuthToken(null);
+      setUser(null);
+    };
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
     loadUser();
+
+    return () => {
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    };
   }, []);
 
   const login = async (email, password) => {
@@ -44,6 +55,9 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (profileData) => {
     const data = await api.updateProfile(profileData);
+    if (data.token) {
+      setAuthToken(data.token);
+    }
     setUser(data.user);
     return data.user;
   };

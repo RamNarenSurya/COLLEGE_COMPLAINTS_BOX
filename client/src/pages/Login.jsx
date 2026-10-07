@@ -59,13 +59,16 @@ export default function Login() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">College Email</label>
+            <label className="form-label">College Email or Student ID</label>
             <input
-              type="email"
+              type="text"
               className="form-control"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your college email"
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (error) setError('');
+              }}
+              placeholder="Enter your college email or student roll ID"
               required
             />
           </div>
@@ -76,7 +79,10 @@ export default function Login() {
               type="password"
               className="form-control"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (error) setError('');
+              }}
               placeholder="••••••••"
               required
             />
