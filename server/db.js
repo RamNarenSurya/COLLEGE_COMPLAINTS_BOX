@@ -254,40 +254,20 @@ async function seedDatabase() {
 
   // Seed Admin Account
   const adminPasswordHash = await bcrypt.hash('admin123', 10);
-  const adminResult = await run(
+  await run(
     `INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)`,
     ['System Administrator', 'admin@college.edu', adminPasswordHash, 'admin']
   );
 
   // Seed Departments
-  const deptMap = {};
   for (const d of defaultDepts) {
-    const res = await run(
+    await run(
       `INSERT INTO departments (name, description) VALUES (?, ?)`,
       [d.name, d.desc]
     );
-    deptMap[d.name] = res.lastID;
   }
 
-  // Seed Staff
-  const staffMembers = [
-    { name: 'Dr. Ravi Kumar', email: 'ravi.cse@college.edu', phone: '9876543201', dept: 'Computer Science and Engineering (CSE)', role: 'Department Head' },
-    { name: 'Suresh Sharma', email: 'suresh.ece@college.edu', phone: '9876543202', dept: 'Electronics and Communication Engineering (ECE)', role: 'Lab Supervisor' },
-    { name: 'Anita Roy', email: 'anita.ai@college.edu', phone: '9876543203', dept: 'Artificial Intelligence (AI)', role: 'Senior Professor' },
-    { name: 'Vikram Singh', email: 'vikram.mech@college.edu', phone: '9876543204', dept: 'Mechanical Engineering (Mechanical)', role: 'Workshop Superintendent' },
-    { name: 'Meena Verma', email: 'meena.civil@college.edu', phone: '9876543205', dept: 'Civil Engineering (Civil)', role: 'Department Coordinator' }
-  ];
-
-  const staffMap = {};
-  for (const s of staffMembers) {
-    const res = await run(
-      `INSERT INTO staff (name, email, phone, department_id, role) VALUES (?, ?, ?, ?, ?)`,
-      [s.name, s.email, s.phone, deptMap[s.dept], s.role]
-    );
-    staffMap[s.name] = res.lastID;
-  }
-
-  console.log('Database seeded successfully with initial data.');
+  console.log('Database seeded successfully with initial data (Admin and Departments).');
 }
 
 module.exports = {
