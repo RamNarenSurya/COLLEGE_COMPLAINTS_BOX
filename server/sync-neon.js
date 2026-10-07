@@ -8,8 +8,10 @@ async function syncToNeon() {
   const regLogs = await all('SELECT user_id, user_name, student_id, email, role, department_name, year, phone, ip_address, user_agent, created_at FROM registration_logs ORDER BY id ASC');
   const loginLogs = await all('SELECT user_id, user_name, email, role, ip_address, user_agent, created_at FROM login_logs ORDER BY id ASC');
   const profileLogs = await all('SELECT user_id, old_name, new_name, old_email, new_email, old_phone, new_phone, change_summary, created_at FROM user_profile_history ORDER BY id ASC');
+  const complaints = await all('SELECT * FROM complaints ORDER BY id ASC');
+  const complaintUpdates = await all('SELECT * FROM complaint_updates ORDER BY id ASC');
 
-  console.log(`Local SQLite totals: ${users.length} users, ${regLogs.length} registration logs, ${loginLogs.length} login logs, ${profileLogs.length} profile change logs.`);
+  console.log(`Local SQLite totals: ${users.length} users, ${regLogs.length} registration logs, ${loginLogs.length} login logs, ${profileLogs.length} profile change logs, ${complaints.length} complaints, ${complaintUpdates.length} issue updates/comments.`);
 
   const client = new Client({
     connectionString: process.env.NEON_DATABASE_URL,
@@ -165,16 +167,113 @@ async function syncToNeon() {
     );
   }
 
+  // 5. Complaints Table (`complaints`)
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS complaints (
+      id INT PRIMARY KEY,
+      complaint_number VARCHAR(100) UNIQUE NOT NULL,
+      student_id INT NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      category VARCHAR(255) NOT NULL,
+      description TEXT NOT NULL,
+      location VARCHAR(255) NOT NULL,
+      priority VARCHAR(50) DEFAULT 'Medium',
+      status VARCHAR(50) DEFAULT 'Submitted',
+      department_id INT,
+      assigned_staff_id INT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      resolved_at TIMESTAMP,
+      closed_at TIMESTAMP
+    );
+  `);
+
+  for (const c of complaints) {
+    await client.query(
+      `INSERT INTO complaints (id, complaint_number, student_id, title, category, description, location, priority, status, department_id, assigned_staff_id, created_at, updated_at, resolved_at, closed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       ON CONFLICT (id) DO UPDATE SET
+         complaint_number = EXCLUDED.complaint_number,
+         student_id = EXCLUDED.student_id,
+         title = EXCLUDED.title,
+         category = EXCLUDED.category,
+         description = EXCLUDED.description,
+         location = EXCLUDED.location,
+         priority = EXCLUDED.priority,
+         status = EXCLUDED.status,
+         department_id = EXCLUDED.department_id,
+         assigned_staff_id = EXCLUDED.assigned_staff_id,
+         updated_at = EXCLUDED.updated_at,
+         resolved_at = EXCLUDED.resolved_at,
+         closed_at = EXCLUDED.closed_at`,
+      [
+        c.id,
+        c.complaint_number,
+        c.student_id,
+        c.title,
+        c.category,
+        c.description,
+        c.location,
+        c.priority || 'Medium',
+        c.status || 'Submitted',
+        c.department_id || null,
+        c.assigned_staff_id || null,
+        c.created_at,
+        c.updated_at,
+        c.resolved_at || null,
+        c.closed_at || null
+      ]
+    );
+  }
+
+  // 6. Complaint Updates / Issue Messages Table (`complaint_updates`)
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS complaint_updates (
+      id INT PRIMARY KEY,
+      complaint_id INT NOT NULL,
+      user_id INT,
+      user_name VARCHAR(255),
+      user_role VARCHAR(50),
+      status VARCHAR(50),
+      comment TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  for (const cu of complaintUpdates) {
+    await client.query(
+      `INSERT INTO complaint_updates (id, complaint_id, user_id, user_name, user_role, status, comment, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (id) DO UPDATE SET
+         comment = EXCLUDED.comment,
+         status = EXCLUDED.status`,
+      [
+        cu.id,
+        cu.complaint_id,
+        cu.user_id || null,
+        cu.user_name || '',
+        cu.user_role || '',
+        cu.status || '',
+        cu.comment || '',
+        cu.created_at
+      ]
+    );
+  }
+
   const userCountRes = await client.query('SELECT COUNT(*) FROM users;');
   const regCountRes = await client.query('SELECT COUNT(*) FROM registration_logs;');
   const logCountRes = await client.query('SELECT COUNT(*) FROM login_logs;');
   const profileCountRes = await client.query('SELECT COUNT(*) FROM user_profile_history;');
+  const complaintCountRes = await client.query('SELECT COUNT(*) FROM complaints;');
+  const updateCountRes = await client.query('SELECT COUNT(*) FROM complaint_updates;');
 
-  console.log('✅ Successfully synced all 4 separate history tables to Neon.tech PostgreSQL Cloud DB!');
+  console.log('✅ Successfully synced all tables to Neon.tech PostgreSQL Cloud DB!');
   console.log(`✅ Registered Members: ${userCountRes.rows[0].count}`);
   console.log(`✅ Registration History Logs: ${regCountRes.rows[0].count}`);
   console.log(`✅ Login Audit Logs: ${logCountRes.rows[0].count}`);
   console.log(`✅ Profile Change Logs: ${profileCountRes.rows[0].count}`);
+  console.log(`✅ Complaints: ${complaintCountRes.rows[0].count}`);
+  console.log(`✅ Issue Messages / Updates: ${updateCountRes.rows[0].count}`);
 
   await client.end();
 }

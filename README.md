@@ -277,4 +277,13 @@ COMPLANT BOX/
             ├── AdminStaff.jsx
             ├── AdminStatistics.jsx
             └── AdminProfile.jsx
+
+---
+
+## 🔮 11. Future Enhancements & Roadmap
+
+- ✉️ **Email Notifications**: Automatic email alerts (via SMTP / SendGrid / Resend) sent to students whenever their complaint status changes or staff posts a response.
+- 🔔 **Real-Time Status Notifications**: Live web-push / Socket.io status notifications for instant resolution alerts on the student dashboard.
+- 📱 **Mobile Push Notifications**: Native PWA / mobile push notifications for real-time ticket alerts on smartphones.
+
 ```

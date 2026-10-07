@@ -1295,5 +1295,16 @@ Recommended visual style:
 Primary: Deep Blue
 Secondary: Slate
 Background: Light Gray
-Car
+Card / Container: White
+Success: Emerald Green
+Warning: Amber
+Danger: Crimson Red
 ```
+
+---
+
+# 43. Future Enhancements & Roadmap
+
+- ✉️ **Email Notifications**: Automatic email notification dispatch (via SMTP/SendGrid/Resend) alerting students when complaint status updates occur or resolutions are posted.
+- 🔔 **Real-Time Status Notifications**: Live web socket status alerts notifying students instantly about ticket updates on their dashboard.
+- 📱 **Push Notifications**: PWA / Browser push notification integration.
