@@ -4,9 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import { 
   LayoutDashboard, 
   FileText, 
-  PlusCircle, 
+  Plus, 
   User, 
-  BarChart3
+  BarChart3,
+  Clock,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function MobileBottomNav() {
@@ -40,8 +42,17 @@ export default function MobileBottomNav() {
             to="/student/complaints/new" 
             className="mobile-nav-item mobile-nav-item-primary"
             aria-label="Report New Issue"
+            title="Report New Issue"
           >
-            <PlusCircle size={24} />
+            <Plus size={28} strokeWidth={2.8} />
+          </NavLink>
+
+          <NavLink 
+            to="/student/history" 
+            className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}
+          >
+            <Clock size={20} />
+            <span>History</span>
           </NavLink>
 
           <NavLink 
@@ -76,6 +87,14 @@ export default function MobileBottomNav() {
           >
             <BarChart3 size={20} />
             <span>Stats</span>
+          </NavLink>
+
+          <NavLink 
+            to="/admin/login-history" 
+            className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}
+          >
+            <ShieldCheck size={20} />
+            <span>Audit</span>
           </NavLink>
 
           <NavLink 
